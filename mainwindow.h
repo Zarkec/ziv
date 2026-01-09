@@ -15,6 +15,9 @@
 #include <QLabel>
 #include <QImageReader>
 #include <QFile>
+#include <QSlider>
+#include <QSpinBox>
+#include <QHBoxLayout>
 #include <cmath>
 
 // 添加OpenCV头文件
@@ -68,6 +71,7 @@ private slots:
     void handleMousePress(QPointF scenePos);
     void handleMouseMove(QPointF scenePos);
     void updateCoordinates(QPointF scenePos);
+    void updateMeasurementScale();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -81,6 +85,7 @@ private:
     void drawMeasurementLine();
     void clearMeasurement();
     double calculateDistance(const QPointF &p1, const QPointF &p2);
+    void applyZoom(int percent);
 
     ImageGraphicsView *m_graphicsView;
     QGraphicsScene *m_graphicsScene;
@@ -101,6 +106,10 @@ private:
     QPointF m_measureEnd;
     QGraphicsLineItem *m_measureLine;
     QGraphicsTextItem *m_measureText;
+    
+    // 缩放控制相关控件
+    QSlider *m_zoomSlider;
+    QSpinBox *m_zoomSpinBox;
 };
 
 #endif // MAINWINDOW_H

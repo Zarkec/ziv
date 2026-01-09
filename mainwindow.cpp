@@ -8,6 +8,9 @@
 #include <QStatusBar>
 #include <QMessageBox>
 #include <QCursor>
+#include <QSlider>
+#include <QSpinBox>
+#include <QHBoxLayout>
 
 // ImageGraphicsView 类实现
 ImageGraphicsView::ImageGraphicsView(QWidget *parent)
@@ -127,6 +130,8 @@ MainWindow::MainWindow(QWidget *parent)
     , m_isShiftPressed(false)
     , m_measureLine(nullptr)
     , m_measureText(nullptr)
+    , m_zoomSlider(nullptr)
+    , m_zoomSpinBox(nullptr)
 {
     setupUI();
     setupActions();
@@ -165,12 +170,36 @@ void MainWindow::setupUI()
     
     // 创建状态栏
     m_coordinateLabel = new QLabel("坐标: (0, 0)", this);
-    m_scaleLabel = new QLabel("缩放: 100%", this);
+    m_scaleLabel = new QLabel("缩放:", this);
     m_sizeLabel = new QLabel("尺寸: 0x0", this);
     
+    // 将坐标标签添加到左侧
+    statusBar()->addWidget(m_coordinateLabel);
+    
+    // 将尺寸标签添加到右侧
     statusBar()->addPermanentWidget(m_sizeLabel);
+    
+    // 将缩放标签和控制组件合并添加到右侧
     statusBar()->addPermanentWidget(m_scaleLabel);
-    statusBar()->addPermanentWidget(m_coordinateLabel);
+    
+    // 创建滑动条
+    m_zoomSlider = new QSlider(Qt::Horizontal, this);
+    m_zoomSlider->setMinimum(1);
+    m_zoomSlider->setMaximum(10000);
+    m_zoomSlider->setValue(100);
+    m_zoomSlider->setEnabled(false);
+    m_zoomSlider->setFixedWidth(150);
+    statusBar()->addPermanentWidget(m_zoomSlider);
+    
+    // 创建文本输入框
+    m_zoomSpinBox = new QSpinBox(this);
+    m_zoomSpinBox->setMinimum(1);
+    m_zoomSpinBox->setMaximum(10000);
+    m_zoomSpinBox->setValue(100);
+    m_zoomSpinBox->setSuffix("%");
+    m_zoomSpinBox->setFixedWidth(80);
+    m_zoomSpinBox->setEnabled(false);
+    statusBar()->addPermanentWidget(m_zoomSpinBox);
     
     // 设置窗口大小
     resize(800, 600);
@@ -258,6 +287,17 @@ void MainWindow::setupActions()
 
 void MainWindow::setupConnections()
 {
+    // 缩放控件之间的同步
+    connect(m_zoomSlider, &QSlider::valueChanged, this, [this](int value) {
+        m_zoomSpinBox->setValue(value);
+        applyZoom(value);
+    });
+    
+    connect(m_zoomSpinBox, &QSpinBox::valueChanged, this, [this](int value) {
+        m_zoomSlider->setValue(value);
+        applyZoom(value);
+    });
+    
     // 连接自定义视图的信号
     connect(m_graphicsView, &ImageGraphicsView::mouseMoved, this, [this](QPointF scenePos) {
         // 确保坐标在图片范围内
@@ -310,6 +350,9 @@ void MainWindow::setupConnections()
     // 连接自定义的scaleChanged信号，用于更新缩放信息
     connect(m_graphicsView, &ImageGraphicsView::scaleChanged, this, [this]() {
         updateScaleInfo();
+        
+        // 更新测量线的视觉参数，保持适当比例
+        updateMeasurementScale();
         
         // 如果处于适应窗口模式，退出该模式
         if (m_isFitToWindow) {
@@ -388,8 +431,10 @@ void MainWindow::openImage()
     m_pixmapItem = m_graphicsScene->addPixmap(pixmap);
     m_graphicsScene->setSceneRect(pixmap.rect());
     
-    // 启用图形视图
+    // 启用图形视图和缩放控件
     m_graphicsView->setEnabled(true);
+    m_zoomSlider->setEnabled(true);
+    m_zoomSpinBox->setEnabled(true);
     
     // 默认适应窗口
     m_isFitToWindow = true;
@@ -504,10 +549,33 @@ void MainWindow::resizeEvent(QResizeEvent *event)
     }
 }
 
+void MainWindow::applyZoom(int percent)
+{
+    if (!m_graphicsView->isEnabled() || !m_pixmapItem) {
+        return;
+    }
+    
+    // 计算缩放因子
+    qreal scaleFactor = percent / 100.0;
+    
+    // 重置变换并应用新的缩放
+    m_graphicsView->resetTransform();
+    m_graphicsView->scale(scaleFactor, scaleFactor);
+    
+    // 更新缩放信息
+    updateScaleInfo();
+    
+    // 确保退出适应窗口模式
+    if (m_isFitToWindow) {
+        m_isFitToWindow = false;
+        m_fitToWindowAction->setChecked(false);
+    }
+}
+
 void MainWindow::updateScaleInfo()
 {
     if (!m_graphicsView->isEnabled() || !m_pixmapItem) {
-        m_scaleLabel->setText("缩放: 100%");
+        m_scaleLabel->setText("缩放:");
         return;
     }
     
@@ -522,7 +590,11 @@ void MainWindow::updateScaleInfo()
     qreal scaleY = viewRect.height() / originalSize.height();
     qreal scale = qMin(scaleX, scaleY) * 100;
     
-    m_scaleLabel->setText(tr("缩放: %1%").arg(qRound(scale)));
+    m_scaleLabel->setText(tr("缩放:"));
+    
+    // 更新缩放控件的值
+    m_zoomSlider->setValue(qRound(scale));
+    m_zoomSpinBox->setValue(qRound(scale));
 }
 
 void MainWindow::updateSizeInfo()
@@ -742,6 +814,27 @@ void MainWindow::drawMeasurementLine()
         return;
     }
     
+    // 获取当前缩放因子
+    qreal scaleFactor = m_graphicsView->transform().m11();
+    
+    // 防止缩放因子为0
+    if (scaleFactor <= 0) {
+        scaleFactor = 1.0;
+    }
+    
+    // 动态计算视觉参数，保持视觉上的适当比例
+    double lineWidth = 2.0 / scaleFactor;
+    double fontSize = 10.0 / scaleFactor;
+    double textOffset = 25.0 / scaleFactor;
+    
+    // 设置最小值限制，避免线条过细或文字过小
+    lineWidth = qMax(lineWidth, 1.0);
+    fontSize = qMax(fontSize, 6.0);
+    textOffset = qMax(textOffset, 15.0);
+    
+    // 更新测量线的线条宽度
+    m_measureLine->setPen(QPen(Qt::red, lineWidth, Qt::DashLine));
+    
     // 更新测量线
     m_measureLine->setLine(m_measureStart.x(), m_measureStart.y(), m_measureEnd.x(), m_measureEnd.y());
     
@@ -752,10 +845,16 @@ void MainWindow::drawMeasurementLine()
     QString text = QString("距离: %1 像素").arg(distance, 0, 'f', 2);
     m_measureText->setPlainText(text);
     
-    // 设置文本位置（位于线段中点，距离线段更远）
+    // 更新字体大小
+    QFont font;
+    font.setPointSize(fontSize);
+    font.setBold(true);
+    m_measureText->setFont(font);
+    
+    // 设置文本位置（位于线段中点，距离线段上方动态偏移）
     QPointF midPoint(
         (m_measureStart.x() + m_measureEnd.x()) / 2,
-        (m_measureStart.y() + m_measureEnd.y()) / 2 - 25 // 文本位于线段上方，增加距离到25像素
+        (m_measureStart.y() + m_measureEnd.y()) / 2 - textOffset
     );
     m_measureText->setPos(midPoint);
 }
@@ -786,4 +885,13 @@ double MainWindow::calculateDistance(const QPointF &p1, const QPointF &p2)
     double dx = p2.x() - p1.x();
     double dy = p2.y() - p1.y();
     return sqrt(dx * dx + dy * dy);
+}
+
+void MainWindow::updateMeasurementScale()
+{
+    if (m_measureLine == nullptr || m_measureText == nullptr) {
+        return;
+    }
+    
+    drawMeasurementLine();
 }
