@@ -237,21 +237,38 @@ void MainWindow::openImage()
         return;
     }
     
-    // 使用QImageReader来处理图片
-    QImageReader reader(fileName);
-    if (!reader.canRead()) {
-        QMessageBox::warning(this, tr("错误"), tr("无法读取图片文件: %1").arg(reader.errorString()));
-        return;
-    }
-    
     QPixmap pixmap;
     QImage image;
     
-    // 直接读取原始尺寸图片
-    if (!reader.read(&image)) {
-        QMessageBox::warning(this, tr("错误"), tr("读取图片失败: %1").arg(reader.errorString()));
+    // 使用OpenCV加载图片
+    cv::Mat cvImage = cv::imread(fileName.toStdString(), cv::IMREAD_UNCHANGED);
+    if (cvImage.empty()) {
+        QMessageBox::warning(this, tr("错误"), tr("无法使用OpenCV加载图片文件: %1").arg(fileName));
         return;
     }
+    
+    // 转换OpenCV的BGR格式到RGB格式
+    cv::Mat cvImageRGB;
+    if (cvImage.channels() == 3) {
+        cv::cvtColor(cvImage, cvImageRGB, cv::COLOR_BGR2RGB);
+    } else if (cvImage.channels() == 4) {
+        cv::cvtColor(cvImage, cvImageRGB, cv::COLOR_BGRA2RGBA);
+    } else {
+        // 单通道图片直接使用
+        cvImageRGB = cvImage.clone();
+    }
+    
+    // 将cv::Mat转换为QImage
+    QImage qImage(
+        cvImageRGB.data,
+        cvImageRGB.cols,
+        cvImageRGB.rows,
+        static_cast<int>(cvImageRGB.step),
+        (cvImageRGB.channels() == 4) ? QImage::Format_RGBA8888 : QImage::Format_RGB888
+    );
+    
+    // 深拷贝QImage，确保数据有效
+    image = qImage.copy();
     
     // 转换为QPixmap
     pixmap = QPixmap::fromImage(image);
@@ -276,11 +293,14 @@ void MainWindow::openImage()
     // 启用图形视图
     m_graphicsView->setEnabled(true);
     
-    // 重置视图
-    originalSize();
+    // 默认适应窗口
+    m_isFitToWindow = true;
+    m_fitToWindowAction->setChecked(true);
+    m_graphicsView->fitInView(m_pixmapItem, Qt::KeepAspectRatio);
     
-    // 更新图片尺寸信息
+    // 更新图片尺寸信息和缩放信息
     updateSizeInfo();
+    updateScaleInfo();
     
     // 更新窗口标题
     setWindowTitle(tr("图片查看器 - %1").arg(fileName));

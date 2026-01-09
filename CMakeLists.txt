@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.19)
 project(ziv LANGUAGES CXX)
 
+# 设置OpenCV路径
+set(OpenCV_DIR "D:/Project/opencv-mingw/x64/mingw/lib")
+
+# 查找OpenCV包
+find_package(OpenCV REQUIRED)
+
+# 查找Qt包
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
 
 qt_standard_project_setup()
@@ -16,7 +23,11 @@ target_link_libraries(ziv
     PRIVATE
         Qt::Core
         Qt::Widgets
+        ${OpenCV_LIBS}
 )
+
+# 添加OpenCV头文件路径
+target_include_directories(ziv PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 include(GNUInstallDirs)
 

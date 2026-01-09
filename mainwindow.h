@@ -16,6 +16,9 @@
 #include <QImageReader>
 #include <QFile>
 
+// 添加OpenCV头文件
+#include <opencv2/opencv.hpp>
+
 // 自定义GraphicsView类，用于处理鼠标事件
 class ImageGraphicsView : public QGraphicsView
 {
