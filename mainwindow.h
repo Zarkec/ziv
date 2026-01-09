@@ -15,6 +15,7 @@
 #include <QLabel>
 #include <QImageReader>
 #include <QFile>
+#include <cmath>
 
 // 添加OpenCV头文件
 #include <opencv2/opencv.hpp>
@@ -29,15 +30,21 @@ public:
 
 signals:
     void mouseMoved(QPointF scenePos);
+    void mousePressed(QPointF scenePos);
     void mouseLeft();
     void mouseEntered(QPointF scenePos);
     void scaleChanged();
+    void shiftPressed();
+    void shiftReleased();
 
 protected:
+    void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void leaveEvent(QEvent *event) override;
     void enterEvent(QEnterEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
 };
 
 class MainWindow : public QMainWindow
@@ -57,6 +64,9 @@ private slots:
     void rotateLeft();
     void rotateRight();
     void rotate180();
+    void toggleMeasureMode();
+    void handleMousePress(QPointF scenePos);
+    void handleMouseMove(QPointF scenePos);
     void updateCoordinates(QPointF scenePos);
 
 protected:
@@ -68,6 +78,9 @@ private:
     void setupConnections();
     void updateScaleInfo();
     void updateSizeInfo();
+    void drawMeasurementLine();
+    void clearMeasurement();
+    double calculateDistance(const QPointF &p1, const QPointF &p2);
 
     ImageGraphicsView *m_graphicsView;
     QGraphicsScene *m_graphicsScene;
@@ -78,6 +91,16 @@ private:
     QLabel *m_sizeLabel;
     QAction *m_fitToWindowAction;
     bool m_isFitToWindow;
+    
+    // 测距功能相关成员变量
+    QAction *m_measureAction;
+    bool m_isMeasureMode;
+    bool m_isMeasureCompleted;
+    bool m_isShiftPressed;
+    QPointF m_measureStart;
+    QPointF m_measureEnd;
+    QGraphicsLineItem *m_measureLine;
+    QGraphicsTextItem *m_measureText;
 };
 
 #endif // MAINWINDOW_H

@@ -14,6 +14,15 @@ ImageGraphicsView::ImageGraphicsView(QWidget *parent)
     : QGraphicsView(parent)
 {}
 
+void ImageGraphicsView::mousePressEvent(QMouseEvent *event)
+{
+    QGraphicsView::mousePressEvent(event);
+    
+    QPointF viewPos = event->pos();
+    QPointF scenePos = mapToScene(viewPos.toPoint());
+    emit mousePressed(scenePos);
+}
+
 void ImageGraphicsView::mouseMoveEvent(QMouseEvent *event)
 {
     QGraphicsView::mouseMoveEvent(event);
@@ -62,6 +71,24 @@ void ImageGraphicsView::wheelEvent(QWheelEvent *event)
     }
 }
 
+void ImageGraphicsView::keyPressEvent(QKeyEvent *event)
+{
+    QGraphicsView::keyPressEvent(event);
+    
+    if (event->key() == Qt::Key_Shift) {
+        emit shiftPressed();
+    }
+}
+
+void ImageGraphicsView::keyReleaseEvent(QKeyEvent *event)
+{
+    QGraphicsView::keyReleaseEvent(event);
+    
+    if (event->key() == Qt::Key_Shift) {
+        emit shiftReleased();
+    }
+}
+
 // MainWindow 类实现
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -72,7 +99,13 @@ MainWindow::MainWindow(QWidget *parent)
     , m_scaleLabel(nullptr)
     , m_sizeLabel(nullptr)
     , m_fitToWindowAction(nullptr)
+    , m_measureAction(nullptr)
     , m_isFitToWindow(false)
+    , m_isMeasureMode(false)
+    , m_isMeasureCompleted(false)
+    , m_isShiftPressed(false)
+    , m_measureLine(nullptr)
+    , m_measureText(nullptr)
 {
     setupUI();
     setupActions();
@@ -157,12 +190,19 @@ void MainWindow::setupActions()
     QAction *rotate180Action = new QAction("旋转180度(&O)", this);
     rotate180Action->setShortcut(tr("Ctrl+O"));
     
+    // 添加测量模式动作
+    m_measureAction = new QAction("测量模式(&M)", this);
+    m_measureAction->setCheckable(true);
+    m_measureAction->setShortcut(tr("Ctrl+M"));
+    
     viewMenu->addAction(zoomInAction);
     viewMenu->addAction(zoomOutAction);
     viewMenu->addSeparator();
     viewMenu->addAction(rotateLeftAction);
     viewMenu->addAction(rotateRightAction);
     viewMenu->addAction(rotate180Action);
+    viewMenu->addSeparator();
+    viewMenu->addAction(m_measureAction);
     viewMenu->addSeparator();
     viewMenu->addAction(m_fitToWindowAction);
     viewMenu->addAction(originalSizeAction);
@@ -178,6 +218,8 @@ void MainWindow::setupActions()
     toolBar->addAction(rotateRightAction);
     toolBar->addAction(rotate180Action);
     toolBar->addSeparator();
+    toolBar->addAction(m_measureAction);
+    toolBar->addSeparator();
     toolBar->addAction(m_fitToWindowAction);
     toolBar->addAction(originalSizeAction);
     
@@ -188,6 +230,7 @@ void MainWindow::setupActions()
     connect(rotateLeftAction, &QAction::triggered, this, &MainWindow::rotateLeft);
     connect(rotateRightAction, &QAction::triggered, this, &MainWindow::rotateRight);
     connect(rotate180Action, &QAction::triggered, this, &MainWindow::rotate180);
+    connect(m_measureAction, &QAction::triggered, this, &MainWindow::toggleMeasureMode);
     connect(m_fitToWindowAction, &QAction::triggered, this, &MainWindow::fitToWindow);
     connect(originalSizeAction, &QAction::triggered, this, &MainWindow::originalSize);
 }
@@ -199,6 +242,37 @@ void MainWindow::setupConnections()
         // 确保坐标在图片范围内
         if (m_pixmapItem && m_graphicsScene->sceneRect().contains(scenePos)) {
             updateCoordinates(scenePos);
+            handleMouseMove(scenePos);
+        }
+    });
+    
+    connect(m_graphicsView, &ImageGraphicsView::mousePressed, this, [this](QPointF scenePos) {
+        // 确保坐标在图片范围内
+        if (m_pixmapItem && m_graphicsScene->sceneRect().contains(scenePos)) {
+            handleMousePress(scenePos);
+        }
+    });
+    
+    // 连接Shift键状态信号
+    connect(m_graphicsView, &ImageGraphicsView::shiftPressed, this, [this]() {
+        m_isShiftPressed = true;
+        // 如果正在测量，更新当前测量线
+        if (m_isMeasureMode && m_measureLine != nullptr && !m_isMeasureCompleted) {
+            // 重新处理当前鼠标位置，应用水平/竖直约束
+            QPoint cursorPos = m_graphicsView->mapFromGlobal(QCursor::pos());
+            QPointF scenePos = m_graphicsView->mapToScene(cursorPos);
+            handleMouseMove(scenePos);
+        }
+    });
+    
+    connect(m_graphicsView, &ImageGraphicsView::shiftReleased, this, [this]() {
+        m_isShiftPressed = false;
+        // 如果正在测量，更新当前测量线
+        if (m_isMeasureMode && m_measureLine != nullptr && !m_isMeasureCompleted) {
+            // 重新处理当前鼠标位置，取消水平/竖直约束
+            QPoint cursorPos = m_graphicsView->mapFromGlobal(QCursor::pos());
+            QPointF scenePos = m_graphicsView->mapToScene(cursorPos);
+            handleMouseMove(scenePos);
         }
     });
     
@@ -285,6 +359,9 @@ void MainWindow::openImage()
         delete m_pixmapItem;
         m_pixmapItem = nullptr;
     }
+    
+    // 清除测量线
+    clearMeasurement();
     
     // 创建新的图片项
     m_pixmapItem = m_graphicsScene->addPixmap(pixmap);
@@ -391,13 +468,22 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 
 void MainWindow::updateScaleInfo()
 {
-    if (!m_graphicsView->isEnabled()) {
+    if (!m_graphicsView->isEnabled() || !m_pixmapItem) {
         m_scaleLabel->setText("缩放: 100%");
         return;
     }
     
-    // 计算当前缩放比例
-    qreal scale = m_graphicsView->transform().m11() * 100;
+    // 获取图片在视图中的显示矩形
+    QRectF viewRect = m_graphicsView->mapFromScene(m_pixmapItem->sceneBoundingRect()).boundingRect();
+    
+    // 获取原始图片尺寸
+    QSize originalSize = m_originalPixmap.size();
+    
+    // 计算缩放比例（取宽度和高度中较小的那个，因为fitInView使用KeepAspectRatio）
+    qreal scaleX = viewRect.width() / originalSize.width();
+    qreal scaleY = viewRect.height() / originalSize.height();
+    qreal scale = qMin(scaleX, scaleY) * 100;
+    
     m_scaleLabel->setText(tr("缩放: %1%").arg(qRound(scale)));
 }
 
@@ -432,6 +518,9 @@ void MainWindow::rotateLeft()
     m_pixmapItem->setPixmap(m_originalPixmap);
     m_graphicsScene->setSceneRect(m_originalPixmap.rect());
     
+    // 清除测量线
+    clearMeasurement();
+    
     // 如果处于适应窗口模式，重新调整大小
     if (m_isFitToWindow) {
         m_graphicsView->fitInView(m_pixmapItem, Qt::KeepAspectRatio);
@@ -460,6 +549,9 @@ void MainWindow::rotateRight()
     m_originalPixmap = QPixmap::fromImage(rotatedImage);
     m_pixmapItem->setPixmap(m_originalPixmap);
     m_graphicsScene->setSceneRect(m_originalPixmap.rect());
+    
+    // 清除测量线
+    clearMeasurement();
     
     // 如果处于适应窗口模式，重新调整大小
     if (m_isFitToWindow) {
@@ -490,6 +582,9 @@ void MainWindow::rotate180()
     m_pixmapItem->setPixmap(m_originalPixmap);
     m_graphicsScene->setSceneRect(m_originalPixmap.rect());
     
+    // 清除测量线
+    clearMeasurement();
+    
     // 如果处于适应窗口模式，重新调整大小
     if (m_isFitToWindow) {
         m_graphicsView->fitInView(m_pixmapItem, Qt::KeepAspectRatio);
@@ -498,4 +593,159 @@ void MainWindow::rotate180()
     // 更新尺寸信息和缩放信息
     updateSizeInfo();
     updateScaleInfo();
+}
+
+void MainWindow::toggleMeasureMode()
+{
+    m_isMeasureMode = m_measureAction->isChecked();
+    
+    if (!m_isMeasureMode) {
+        clearMeasurement();
+        // 退出测量模式，恢复手型光标和拖拽模式
+        m_graphicsView->setCursor(Qt::ArrowCursor);
+        m_graphicsView->setDragMode(QGraphicsView::ScrollHandDrag);
+    } else {
+        // 进入测量模式，设置十字光标并禁用拖拽
+        m_graphicsView->setCursor(Qt::CrossCursor);
+        m_graphicsView->setDragMode(QGraphicsView::NoDrag);
+    }
+}
+
+void MainWindow::handleMousePress(QPointF scenePos)
+{
+    if (!m_isMeasureMode) {
+        return;
+    }
+    
+    if (m_measureLine == nullptr) {
+        // 第一次点击：设置起点，创建测量线
+        m_measureStart = scenePos;
+        m_measureEnd = scenePos;
+        m_isMeasureCompleted = false;
+        
+        // 创建测量线
+        m_measureLine = new QGraphicsLineItem();
+        m_measureLine->setPen(QPen(Qt::red, 2, Qt::DashLine));
+        m_graphicsScene->addItem(m_measureLine);
+        
+        // 创建测量文本
+        m_measureText = new QGraphicsTextItem();
+        QFont font;
+        font.setPointSize(10);
+        font.setBold(true);
+        m_measureText->setFont(font);
+        m_measureText->setDefaultTextColor(Qt::red);
+        m_graphicsScene->addItem(m_measureText);
+        
+        drawMeasurementLine();
+    } else {
+        if (!m_isMeasureCompleted) {
+            // 第二次点击：固定终点，测量完成
+            QPointF endPos = scenePos;
+            
+            // 如果按下了Shift键，应用水平/竖直约束
+            if (m_isShiftPressed) {
+                // 计算水平和竖直距离
+                double dx = qAbs(scenePos.x() - m_measureStart.x());
+                double dy = qAbs(scenePos.y() - m_measureStart.y());
+                
+                // 根据距离选择水平或竖直约束
+                if (dx > dy) {
+                    // 水平约束，保持y坐标不变
+                    endPos.setY(m_measureStart.y());
+                } else {
+                    // 竖直约束，保持x坐标不变
+                    endPos.setX(m_measureStart.x());
+                }
+            }
+            
+            m_measureEnd = endPos;
+            m_isMeasureCompleted = true;
+            drawMeasurementLine();
+        } else {
+            // 第三次点击：开始新的测量，清除旧的测量线
+            clearMeasurement();
+        }
+    }
+}
+
+void MainWindow::handleMouseMove(QPointF scenePos)
+{
+    if (!m_isMeasureMode || m_measureLine == nullptr || m_isMeasureCompleted) {
+        return;
+    }
+    
+    QPointF endPos = scenePos;
+    
+    // 如果按下了Shift键，约束测量线为水平或竖直
+    if (m_isShiftPressed) {
+        // 计算水平和竖直距离
+        double dx = qAbs(scenePos.x() - m_measureStart.x());
+        double dy = qAbs(scenePos.y() - m_measureStart.y());
+        
+        // 根据距离选择水平或竖直约束
+        if (dx > dy) {
+            // 水平约束，保持y坐标不变
+            endPos.setY(m_measureStart.y());
+        } else {
+            // 竖直约束，保持x坐标不变
+            endPos.setX(m_measureStart.x());
+        }
+    }
+    
+    // 更新终点
+    m_measureEnd = endPos;
+    drawMeasurementLine();
+}
+
+void MainWindow::drawMeasurementLine()
+{
+    if (m_measureLine == nullptr || m_measureText == nullptr) {
+        return;
+    }
+    
+    // 更新测量线
+    m_measureLine->setLine(m_measureStart.x(), m_measureStart.y(), m_measureEnd.x(), m_measureEnd.y());
+    
+    // 计算距离
+    double distance = calculateDistance(m_measureStart, m_measureEnd);
+    
+    // 更新测量文本 - 使用Qt的arg语法，%1作为占位符，0表示宽度，'f'表示浮点数，2表示小数位数
+    QString text = QString("距离: %1 像素").arg(distance, 0, 'f', 2);
+    m_measureText->setPlainText(text);
+    
+    // 设置文本位置（位于线段中点，距离线段更远）
+    QPointF midPoint(
+        (m_measureStart.x() + m_measureEnd.x()) / 2,
+        (m_measureStart.y() + m_measureEnd.y()) / 2 - 25 // 文本位于线段上方，增加距离到25像素
+    );
+    m_measureText->setPos(midPoint);
+}
+
+void MainWindow::clearMeasurement()
+{
+    if (m_measureLine != nullptr) {
+        m_graphicsScene->removeItem(m_measureLine);
+        delete m_measureLine;
+        m_measureLine = nullptr;
+    }
+    
+    if (m_measureText != nullptr) {
+        m_graphicsScene->removeItem(m_measureText);
+        delete m_measureText;
+        m_measureText = nullptr;
+    }
+    
+    // 重置测量状态
+    m_measureStart = QPointF();
+    m_measureEnd = QPointF();
+    m_isMeasureCompleted = false;
+}
+
+double MainWindow::calculateDistance(const QPointF &p1, const QPointF &p2)
+{
+    // 使用欧几里得距离公式计算两点间距离
+    double dx = p2.x() - p1.x();
+    double dy = p2.y() - p1.y();
+    return sqrt(dx * dx + dy * dy);
 }
