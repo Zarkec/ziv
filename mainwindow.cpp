@@ -57,14 +57,35 @@ void ImageGraphicsView::wheelEvent(QWheelEvent *event)
             scaleFactor = 1.0 / scaleFactor;
         }
         
-        // 执行缩放操作
-        scale(scaleFactor, scaleFactor);
+        // 检查缩放限制
+        qreal currentScale = transform().m11() * 100;
+        qreal newScale = currentScale * scaleFactor;
         
-        // 发射缩放变化信号
-        emit scaleChanged();
-        
-        // 阻止默认的滚动行为
-        event->accept();
+        // 确保缩放后不超过限制
+        if ((scaleFactor > 1 && currentScale < 100000) || (scaleFactor < 1 && currentScale > 1)) {
+            // 计算实际允许的缩放因子
+            qreal actualScaleFactor = scaleFactor;
+            if (scaleFactor > 1 && currentScale < 100000) {
+                actualScaleFactor = 100000 / currentScale;
+                // 如果最大缩放因子大于1.15，则使用1.15，否则使用计算出的最大缩放因子
+                actualScaleFactor = qMin(actualScaleFactor, 1.15);
+            } else if (scaleFactor < 1 && currentScale > 1) {
+                actualScaleFactor = 1.0 / 1.15;
+                // 确保缩放后不低于1%
+                if (currentScale * actualScaleFactor < 1) {
+                    actualScaleFactor = 1.0 / currentScale;
+                }
+            }
+            
+            // 执行缩放操作
+            scale(actualScaleFactor, actualScaleFactor);
+            
+            // 发射缩放变化信号
+            emit scaleChanged();
+            
+            // 阻止默认的滚动行为
+            event->accept();
+        }
     } else {
         // 调用默认的滚轮事件处理（滚动）
         QGraphicsView::wheelEvent(event);
@@ -389,13 +410,24 @@ void MainWindow::zoomIn()
         return;
     }
     
-    m_graphicsView->scale(1.2, 1.2);
-    updateScaleInfo();
+    // 获取当前缩放比例
+    qreal currentScale = m_graphicsView->transform().m11() * 100;
     
-    // 如果处于适应窗口模式，退出该模式
-    if (m_isFitToWindow) {
-        m_isFitToWindow = false;
-        m_fitToWindowAction->setChecked(false);
+    // 检查是否超过最大缩放限制（100000%）
+    if (currentScale < 100000) {
+        // 计算实际允许的最大缩放因子
+        qreal maxScaleFactor = 1.2;
+        if (currentScale * 1.2 > 100000) {
+            maxScaleFactor = 100000 / currentScale;
+        }
+        m_graphicsView->scale(maxScaleFactor, maxScaleFactor);
+        updateScaleInfo();
+        
+        // 如果处于适应窗口模式，退出该模式
+        if (m_isFitToWindow) {
+            m_isFitToWindow = false;
+            m_fitToWindowAction->setChecked(false);
+        }
     }
 }
 
@@ -405,13 +437,19 @@ void MainWindow::zoomOut()
         return;
     }
     
-    m_graphicsView->scale(1.0 / 1.2, 1.0 / 1.2);
-    updateScaleInfo();
+    // 获取当前缩放比例
+    qreal currentScale = m_graphicsView->transform().m11() * 100;
     
-    // 如果处于适应窗口模式，退出该模式
-    if (m_isFitToWindow) {
-        m_isFitToWindow = false;
-        m_fitToWindowAction->setChecked(false);
+    // 检查是否低于最小缩放限制（1%）
+    if (currentScale > 1) {
+        m_graphicsView->scale(1.0 / 1.2, 1.0 / 1.2);
+        updateScaleInfo();
+        
+        // 如果处于适应窗口模式，退出该模式
+        if (m_isFitToWindow) {
+            m_isFitToWindow = false;
+            m_fitToWindowAction->setChecked(false);
+        }
     }
 }
 
