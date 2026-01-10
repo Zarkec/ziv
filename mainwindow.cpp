@@ -378,10 +378,23 @@ void MainWindow::openImage()
     QPixmap pixmap;
     QImage image;
     
-    // 使用OpenCV加载图片
-    cv::Mat cvImage = cv::imread(fileName.toStdString(), cv::IMREAD_UNCHANGED);
+    // 使用Qt读取文件数据，避免OpenCV中文路径问题
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, tr("错误"), tr("无法打开图片文件: %1").arg(fileName));
+        return;
+    }
+    
+    QByteArray fileData = file.readAll();
+    file.close();
+    
+    // 将QByteArray转换为cv::Mat
+    cv::Mat matData(1, fileData.size(), CV_8U, (void*)fileData.data());
+    
+    // 使用imdecode从内存解码图片
+    cv::Mat cvImage = cv::imdecode(matData, cv::IMREAD_UNCHANGED);
     if (cvImage.empty()) {
-        QMessageBox::warning(this, tr("错误"), tr("无法使用OpenCV加载图片文件: %1").arg(fileName));
+        QMessageBox::warning(this, tr("错误"), tr("无法解码图片文件: %1").arg(fileName));
         return;
     }
     
@@ -414,8 +427,7 @@ void MainWindow::openImage()
     
     // 获取图片信息
     QSize imageSize = image.size();
-    QFile file(fileName);
-    qint64 fileSize = file.size();
+    qint64 fileSize = fileData.size();
     
     // 如果已有图片项，先移除
     if (m_pixmapItem) {
