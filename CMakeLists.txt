@@ -14,9 +14,15 @@ qt_standard_project_setup()
 
 qt_add_executable(ziv
     WIN32 MACOSX_BUNDLE
-    main.cpp
-    mainwindow.cpp
-    mainwindow.h
+    src/main.cpp
+    src/ui/mainwindow.cpp
+    src/ui/mainwindow.h
+    src/core/imagegraphicsview.cpp
+    src/core/imagegraphicsview.h
+    src/core/imageviewer.cpp
+    src/core/imageviewer.h
+    src/core/measurementtool.cpp
+    src/core/measurementtool.h
 )
 
 target_link_libraries(ziv
@@ -27,7 +33,7 @@ target_link_libraries(ziv
 )
 
 # 添加OpenCV头文件路径
-target_include_directories(ziv PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_include_directories(ziv PRIVATE ${OpenCV_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 include(GNUInstallDirs)
 
