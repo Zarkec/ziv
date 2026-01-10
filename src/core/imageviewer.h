@@ -24,6 +24,7 @@ public:
     void setCoordinateLabel(QLabel *label);
     void setScaleLabel(QLabel *label);
     void setSizeLabel(QLabel *label);
+    void setImageSizeLabel(QLabel *label);
     void setZoomSlider(QSlider *slider);
     void setZoomSpinBox(QSpinBox *spinBox);
     
@@ -70,10 +71,12 @@ private:
     QLabel *m_coordinateLabel;
     QLabel *m_scaleLabel;
     QLabel *m_sizeLabel;
+    QLabel *m_imageSizeLabel;
     QSlider *m_zoomSlider;
     QSpinBox *m_zoomSpinBox;
     
     bool m_isFitToWindow;
+    qint64 m_fileSize;
 };
 
 #endif // IMAGEVIEWER_H

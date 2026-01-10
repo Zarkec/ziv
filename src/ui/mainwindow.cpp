@@ -70,8 +70,10 @@ void MainWindow::setupUI()
     m_coordinateLabel = new QLabel("坐标: (0, 0)", this);
     m_scaleLabel = new QLabel("缩放:", this);
     m_sizeLabel = new QLabel("尺寸: 0x0", this);
+    m_imageSizeLabel = new QLabel("图片大小: 0 B", this);
     
     statusBar()->addWidget(m_coordinateLabel);
+    statusBar()->addPermanentWidget(m_imageSizeLabel);
     statusBar()->addPermanentWidget(m_sizeLabel);
     statusBar()->addPermanentWidget(m_scaleLabel);
     
@@ -100,6 +102,7 @@ void MainWindow::setupUI()
     m_imageViewer->setCoordinateLabel(m_coordinateLabel);
     m_imageViewer->setScaleLabel(m_scaleLabel);
     m_imageViewer->setSizeLabel(m_sizeLabel);
+    m_imageViewer->setImageSizeLabel(m_imageSizeLabel);
     m_imageViewer->setZoomSlider(m_zoomSlider);
     m_imageViewer->setZoomSpinBox(m_zoomSpinBox);
     

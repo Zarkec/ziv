@@ -14,9 +14,11 @@ ImageViewer::ImageViewer(ImageGraphicsView *view, QGraphicsScene *scene, QObject
     , m_coordinateLabel(nullptr)
     , m_scaleLabel(nullptr)
     , m_sizeLabel(nullptr)
+    , m_imageSizeLabel(nullptr)
     , m_zoomSlider(nullptr)
     , m_zoomSpinBox(nullptr)
     , m_isFitToWindow(false)
+    , m_fileSize(0)
 {
 }
 
@@ -33,6 +35,11 @@ void ImageViewer::setScaleLabel(QLabel *label)
 void ImageViewer::setSizeLabel(QLabel *label)
 {
     m_sizeLabel = label;
+}
+
+void ImageViewer::setImageSizeLabel(QLabel *label)
+{
+    m_imageSizeLabel = label;
 }
 
 void ImageViewer::setZoomSlider(QSlider *slider)
@@ -57,6 +64,7 @@ void ImageViewer::openImage(const QString &fileName)
         return;
     }
     
+    m_fileSize = file.size();
     QByteArray fileData = file.readAll();
     file.close();
     
@@ -434,9 +442,26 @@ void ImageViewer::updateSizeInfo()
         if (m_sizeLabel) {
             m_sizeLabel->setText(tr("尺寸: %1x%2").arg(width).arg(height));
         }
+        
+        if (m_imageSizeLabel) {
+            QString sizeStr;
+            if (m_fileSize < 1024) {
+                sizeStr = tr("%1 B").arg(m_fileSize);
+            } else if (m_fileSize < 1024 * 1024) {
+                sizeStr = tr("%1 KB").arg(m_fileSize / 1024.0, 0, 'f', 2);
+            } else if (m_fileSize < 1024 * 1024 * 1024) {
+                sizeStr = tr("%1 MB").arg(m_fileSize / (1024.0 * 1024.0), 0, 'f', 2);
+            } else {
+                sizeStr = tr("%1 GB").arg(m_fileSize / (1024.0 * 1024.0 * 1024.0), 0, 'f', 2);
+            }
+            m_imageSizeLabel->setText(tr("图片大小: %1").arg(sizeStr));
+        }
     } else {
         if (m_sizeLabel) {
             m_sizeLabel->setText("尺寸: 0x0");
+        }
+        if (m_imageSizeLabel) {
+            m_imageSizeLabel->setText("图片大小: 0 B");
         }
     }
 }

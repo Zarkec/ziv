@@ -52,6 +52,7 @@ private:
     QLabel *m_coordinateLabel;
     QLabel *m_scaleLabel;
     QLabel *m_sizeLabel;
+    QLabel *m_imageSizeLabel;
     QAction *m_fitToWindowAction;
     QAction *m_measureAction;
     
