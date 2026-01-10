@@ -410,12 +410,21 @@ void MainWindow::openImage()
     }
     
     // 将cv::Mat转换为QImage
+    QImage::Format format;
+    if (cvImageRGB.channels() == 1) {
+        format = QImage::Format_Grayscale8;
+    } else if (cvImageRGB.channels() == 4) {
+        format = QImage::Format_RGBA8888;
+    } else {
+        format = QImage::Format_RGB888;
+    }
+    
     QImage qImage(
         cvImageRGB.data,
         cvImageRGB.cols,
         cvImageRGB.rows,
         static_cast<int>(cvImageRGB.step),
-        (cvImageRGB.channels() == 4) ? QImage::Format_RGBA8888 : QImage::Format_RGB888
+        format
     );
     
     // 深拷贝QImage，确保数据有效
