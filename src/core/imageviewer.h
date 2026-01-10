@@ -55,6 +55,7 @@ public:
 signals:
     void imageLoaded(const QString &fileName);
     void scaleChanged();
+    void fitToWindowChanged(bool fit);
 
 private:
     void updateSizeInfo();

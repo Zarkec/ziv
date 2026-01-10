@@ -166,6 +166,7 @@ void ImageViewer::originalSize()
     updateScaleInfo();
     
     m_isFitToWindow = false;
+    emit fitToWindowChanged(false);
 }
 
 void ImageViewer::rotateLeft()
@@ -350,6 +351,7 @@ void ImageViewer::applyZoom(int percent)
     
     if (m_isFitToWindow) {
         m_isFitToWindow = false;
+        emit fitToWindowChanged(false);
     }
 }
 

@@ -92,7 +92,8 @@ void MainWindow::setupUI()
     m_zoomSpinBox->setEnabled(false);
     statusBar()->addPermanentWidget(m_zoomSpinBox);
     
-    resize(800, 600);
+    resize(1200, 750);
+    setMinimumSize(550, 400);
     setWindowTitle("图片查看器");
     
     m_imageViewer = new ImageViewer(m_graphicsView, m_graphicsScene, this);
@@ -222,6 +223,10 @@ void MainWindow::setupConnections()
         }
     });
     
+    connect(m_imageViewer, &ImageViewer::fitToWindowChanged, this, [this](bool fit) {
+        m_fitToWindowAction->setChecked(fit);
+    });
+    
     connect(m_graphicsView, &ImageGraphicsView::shiftPressed, this, [this]() {
         m_measurementTool->setShiftPressed(true);
         if (m_measurementTool->isMeasureMode()) {
@@ -253,11 +258,6 @@ void MainWindow::setupConnections()
     connect(m_graphicsView, &ImageGraphicsView::scaleChanged, this, [this]() {
         m_imageViewer->updateScaleInfo();
         m_measurementTool->updateMeasurementScale();
-        
-        if (m_imageViewer->isFitToWindow()) {
-            m_imageViewer->setFitToWindow(false);
-            m_fitToWindowAction->setChecked(false);
-        }
     });
     
     connect(m_imageViewer, &ImageViewer::imageLoaded, this, [this](const QString &fileName) {
