@@ -8,7 +8,7 @@ set(OpenCV_DIR "D:/Project/opencv-mingw/x64/mingw/lib")
 find_package(OpenCV REQUIRED)
 
 # 查找Qt包
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Concurrent)
 
 qt_standard_project_setup()
 
@@ -29,6 +29,7 @@ target_link_libraries(ziv
     PRIVATE
         Qt::Core
         Qt::Widgets
+        Qt::Concurrent
         ${OpenCV_LIBS}
 )
 

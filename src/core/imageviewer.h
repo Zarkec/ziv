@@ -9,6 +9,8 @@
 #include <QLabel>
 #include <QSlider>
 #include <QSpinBox>
+#include <QFuture>
+#include <opencv2/opencv.hpp>
 
 #include "core/imagegraphicsview.h"
 
@@ -35,6 +37,8 @@ public:
     void rotate180();
     void flipHorizontal();
     void flipVertical();
+    bool exportImage(const QString &fileName);
+    QFuture<bool> exportImageAsync(const QString &fileName);
     void applyZoom(int percent);
     void updateCoordinates(QPointF scenePos);
     
@@ -54,11 +58,13 @@ signals:
 
 private:
     void updateSizeInfo();
+    void updatePixmapFromMat();
     
     ImageGraphicsView *m_view;
     QGraphicsScene *m_scene;
     QGraphicsPixmapItem *m_pixmapItem;
     QPixmap m_originalPixmap;
+    cv::Mat m_cvImage;
     
     QLabel *m_coordinateLabel;
     QLabel *m_scaleLabel;

@@ -11,6 +11,10 @@
 #include <QSlider>
 #include <QSpinBox>
 #include <QHBoxLayout>
+#include <QProgressDialog>
+#include <QThread>
+#include <QtConcurrent>
+#include <QCoreApplication>
 
 #include "core/imagegraphicsview.h"
 #include "core/imageviewer.h"
@@ -110,6 +114,10 @@ void MainWindow::setupActions()
     openAction->setShortcut(QKeySequence::Open);
     fileMenu->addAction(openAction);
     
+    QAction *exportAction = new QAction("导出(&E)", this);
+    exportAction->setShortcut(QKeySequence::Save);
+    fileMenu->addAction(exportAction);
+    
     QAction *zoomInAction = new QAction("放大(&+)", this);
     zoomInAction->setShortcut(QKeySequence::ZoomIn);
     
@@ -158,6 +166,7 @@ void MainWindow::setupActions()
     
     QToolBar *toolBar = addToolBar("查看工具栏");
     toolBar->addAction(openAction);
+    toolBar->addAction(exportAction);
     toolBar->addSeparator();
     toolBar->addAction(zoomInAction);
     toolBar->addAction(zoomOutAction);
@@ -175,6 +184,7 @@ void MainWindow::setupActions()
     toolBar->addAction(originalSizeAction);
     
     connect(openAction, &QAction::triggered, this, &MainWindow::openImage);
+    connect(exportAction, &QAction::triggered, this, &MainWindow::exportImage);
     connect(zoomInAction, &QAction::triggered, this, &MainWindow::zoomIn);
     connect(zoomOutAction, &QAction::triggered, this, &MainWindow::zoomOut);
     connect(rotateLeftAction, &QAction::triggered, this, &MainWindow::rotateLeft);
@@ -266,10 +276,50 @@ void MainWindow::openImage()
         this, 
         tr("打开图片"), 
         QString(), 
-        tr("图片文件 (*.png *.jpg *.jpeg *.bmp *.gif);;所有文件 (*.*)")
+        tr("图片文件 (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp);;所有文件 (*.*)")
     );
     
     m_imageViewer->openImage(fileName);
+}
+
+void MainWindow::exportImage()
+{
+    if (!m_imageViewer->isEnabled() || !m_imageViewer->pixmapItem()) {
+        QMessageBox::warning(this, tr("警告"), tr("没有可导出的图片"));
+        return;
+    }
+    
+    QString fileName = QFileDialog::getSaveFileName(
+        this,
+        tr("导出图片"),
+        QString(),
+        tr("PNG 图片 (*.png);;JPEG 图片 (*.jpg *.jpeg);;BMP 图片 (*.bmp);;TIFF 图片 (*.tiff *.tif);;WEBP 图片 (*.webp);;所有文件 (*.*)")
+    );
+    
+    if (fileName.isEmpty()) {
+        return;
+    }
+    
+    QProgressDialog progressDialog(tr("正在保存图片..."), tr("取消"), 0, 0, this);
+    progressDialog.setWindowModality(Qt::WindowModal);
+    progressDialog.setCancelButton(nullptr);
+    progressDialog.setRange(0, 0);
+    progressDialog.show();
+    
+    QFuture<bool> future = m_imageViewer->exportImageAsync(fileName);
+    
+    while (!future.isFinished()) {
+        QCoreApplication::processEvents();
+        QThread::msleep(50);
+    }
+    
+    progressDialog.close();
+    
+    if (future.result()) {
+        QMessageBox::information(this, tr("成功"), tr("图片已成功导出到:\n%1").arg(fileName));
+    } else {
+        QMessageBox::warning(this, tr("错误"), tr("导出图片失败"));
+    }
 }
 
 void MainWindow::zoomIn()

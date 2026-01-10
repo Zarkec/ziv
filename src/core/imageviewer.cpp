@@ -1,6 +1,8 @@
 #include "imageviewer.h"
 #include <QMessageBox>
 #include <QFile>
+#include <QFileInfo>
+#include <QtConcurrent>
 #include <opencv2/opencv.hpp>
 #include "core/imagegraphicsview.h"
 
@@ -49,9 +51,6 @@ void ImageViewer::openImage(const QString &fileName)
         return;
     }
     
-    QPixmap pixmap;
-    QImage image;
-    
     QFile file(fileName);
     if (!file.open(QIODevice::ReadOnly)) {
         QMessageBox::warning(nullptr, tr("错误"), tr("无法打开图片文件: %1").arg(fileName));
@@ -69,38 +68,8 @@ void ImageViewer::openImage(const QString &fileName)
         return;
     }
     
-    cv::Mat cvImageRGB;
-    if (cvImage.channels() == 3) {
-        cv::cvtColor(cvImage, cvImageRGB, cv::COLOR_BGR2RGB);
-    } else if (cvImage.channels() == 4) {
-        cv::cvtColor(cvImage, cvImageRGB, cv::COLOR_BGRA2RGBA);
-    } else {
-        cvImageRGB = cvImage.clone();
-    }
-    
-    QImage::Format format;
-    if (cvImageRGB.channels() == 1) {
-        format = QImage::Format_Grayscale8;
-    } else if (cvImageRGB.channels() == 4) {
-        format = QImage::Format_RGBA8888;
-    } else {
-        format = QImage::Format_RGB888;
-    }
-    
-    QImage qImage(
-        cvImageRGB.data,
-        cvImageRGB.cols,
-        cvImageRGB.rows,
-        static_cast<int>(cvImageRGB.step),
-        format
-    );
-    
-    image = qImage.copy();
-    pixmap = QPixmap::fromImage(image);
-    m_originalPixmap = pixmap;
-    
-    QSize imageSize = image.size();
-    qint64 fileSize = fileData.size();
+    m_cvImage = cvImage;
+    updatePixmapFromMat();
     
     if (m_pixmapItem) {
         m_scene->removeItem(m_pixmapItem);
@@ -108,8 +77,8 @@ void ImageViewer::openImage(const QString &fileName)
         m_pixmapItem = nullptr;
     }
     
-    m_pixmapItem = m_scene->addPixmap(pixmap);
-    m_scene->setSceneRect(pixmap.rect());
+    m_pixmapItem = m_scene->addPixmap(m_originalPixmap);
+    m_scene->setSceneRect(m_originalPixmap.rect());
     
     m_view->setEnabled(true);
     if (m_zoomSlider) {
@@ -201,17 +170,16 @@ void ImageViewer::originalSize()
 
 void ImageViewer::rotateLeft()
 {
-    if (!m_view->isEnabled() || !m_pixmapItem) {
+    if (!m_view->isEnabled() || m_cvImage.empty()) {
         return;
     }
     
-    QImage image = m_originalPixmap.toImage();
+    cv::Mat rotated;
+    cv::transpose(m_cvImage, rotated);
+    cv::flip(rotated, rotated, 0);
+    m_cvImage = rotated;
     
-    QTransform transform;
-    transform.rotate(-90);
-    QImage rotatedImage = image.transformed(transform, Qt::SmoothTransformation);
-    
-    m_originalPixmap = QPixmap::fromImage(rotatedImage);
+    updatePixmapFromMat();
     m_pixmapItem->setPixmap(m_originalPixmap);
     m_scene->setSceneRect(m_originalPixmap.rect());
     
@@ -220,17 +188,16 @@ void ImageViewer::rotateLeft()
 
 void ImageViewer::rotateRight()
 {
-    if (!m_view->isEnabled() || !m_pixmapItem) {
+    if (!m_view->isEnabled() || m_cvImage.empty()) {
         return;
     }
     
-    QImage image = m_originalPixmap.toImage();
+    cv::Mat rotated;
+    cv::transpose(m_cvImage, rotated);
+    cv::flip(rotated, rotated, 1);
+    m_cvImage = rotated;
     
-    QTransform transform;
-    transform.rotate(90);
-    QImage rotatedImage = image.transformed(transform, Qt::SmoothTransformation);
-    
-    m_originalPixmap = QPixmap::fromImage(rotatedImage);
+    updatePixmapFromMat();
     m_pixmapItem->setPixmap(m_originalPixmap);
     m_scene->setSceneRect(m_originalPixmap.rect());
     
@@ -239,17 +206,15 @@ void ImageViewer::rotateRight()
 
 void ImageViewer::rotate180()
 {
-    if (!m_view->isEnabled() || !m_pixmapItem) {
+    if (!m_view->isEnabled() || m_cvImage.empty()) {
         return;
     }
     
-    QImage image = m_originalPixmap.toImage();
+    cv::Mat rotated;
+    cv::flip(m_cvImage, rotated, -1);
+    m_cvImage = rotated;
     
-    QTransform transform;
-    transform.rotate(180);
-    QImage rotatedImage = image.transformed(transform, Qt::SmoothTransformation);
-    
-    m_originalPixmap = QPixmap::fromImage(rotatedImage);
+    updatePixmapFromMat();
     m_pixmapItem->setPixmap(m_originalPixmap);
     m_scene->setSceneRect(m_originalPixmap.rect());
     
@@ -258,14 +223,15 @@ void ImageViewer::rotate180()
 
 void ImageViewer::flipHorizontal()
 {
-    if (!m_view->isEnabled() || !m_pixmapItem) {
+    if (!m_view->isEnabled() || m_cvImage.empty()) {
         return;
     }
     
-    QImage image = m_originalPixmap.toImage();
-    QImage flippedImage = image.mirrored(true, false);
+    cv::Mat flipped;
+    cv::flip(m_cvImage, flipped, 1);
+    m_cvImage = flipped;
     
-    m_originalPixmap = QPixmap::fromImage(flippedImage);
+    updatePixmapFromMat();
     m_pixmapItem->setPixmap(m_originalPixmap);
     m_scene->setSceneRect(m_originalPixmap.rect());
     
@@ -274,18 +240,99 @@ void ImageViewer::flipHorizontal()
 
 void ImageViewer::flipVertical()
 {
-    if (!m_view->isEnabled() || !m_pixmapItem) {
+    if (!m_view->isEnabled() || m_cvImage.empty()) {
         return;
     }
     
-    QImage image = m_originalPixmap.toImage();
-    QImage flippedImage = image.mirrored(false, true);
+    cv::Mat flipped;
+    cv::flip(m_cvImage, flipped, 0);
+    m_cvImage = flipped;
     
-    m_originalPixmap = QPixmap::fromImage(flippedImage);
+    updatePixmapFromMat();
     m_pixmapItem->setPixmap(m_originalPixmap);
     m_scene->setSceneRect(m_originalPixmap.rect());
     
     emit scaleChanged();
+}
+
+bool ImageViewer::exportImage(const QString &fileName)
+{
+    if (!m_view->isEnabled() || m_cvImage.empty() || fileName.isEmpty()) {
+        return false;
+    }
+    
+    QFileInfo fileInfo(fileName);
+    QString suffix = fileInfo.suffix().toLower();
+    
+    std::string ext;
+    if (suffix == "png") {
+        ext = ".png";
+    } else if (suffix == "jpg" || suffix == "jpeg") {
+        ext = ".jpg";
+    } else if (suffix == "bmp") {
+        ext = ".bmp";
+    } else if (suffix == "tiff" || suffix == "tif") {
+        ext = ".tiff";
+    } else if (suffix == "webp") {
+        ext = ".webp";
+    } else {
+        return false;
+    }
+    
+    std::vector<uchar> buffer;
+    cv::imencode(ext, m_cvImage, buffer);
+    
+    QFile file(fileName);
+    if (!file.open(QIODevice::WriteOnly)) {
+        return false;
+    }
+    
+    file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+    file.close();
+    
+    return true;
+}
+
+QFuture<bool> ImageViewer::exportImageAsync(const QString &fileName)
+{
+    if (!m_view->isEnabled() || m_cvImage.empty() || fileName.isEmpty()) {
+        return QtConcurrent::run([]() { return false; });
+    }
+    
+    QFileInfo fileInfo(fileName);
+    QString suffix = fileInfo.suffix().toLower();
+    
+    std::string ext;
+    if (suffix == "png") {
+        ext = ".png";
+    } else if (suffix == "jpg" || suffix == "jpeg") {
+        ext = ".jpg";
+    } else if (suffix == "bmp") {
+        ext = ".bmp";
+    } else if (suffix == "tiff" || suffix == "tif") {
+        ext = ".tiff";
+    } else if (suffix == "webp") {
+        ext = ".webp";
+    } else {
+        return QtConcurrent::run([]() { return false; });
+    }
+    
+    cv::Mat image = m_cvImage.clone();
+    
+    return QtConcurrent::run([image, fileName, ext]() {
+        std::vector<uchar> buffer;
+        cv::imencode(ext, image, buffer);
+        
+        QFile file(fileName);
+        if (!file.open(QIODevice::WriteOnly)) {
+            return false;
+        }
+        
+        file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+        file.close();
+        
+        return true;
+    });
 }
 
 void ImageViewer::applyZoom(int percent)
@@ -390,4 +437,39 @@ void ImageViewer::updateSizeInfo()
             m_sizeLabel->setText("尺寸: 0x0");
         }
     }
+}
+
+void ImageViewer::updatePixmapFromMat()
+{
+    if (m_cvImage.empty()) {
+        return;
+    }
+    
+    cv::Mat cvImageRGB;
+    if (m_cvImage.channels() == 3) {
+        cv::cvtColor(m_cvImage, cvImageRGB, cv::COLOR_BGR2RGB);
+    } else if (m_cvImage.channels() == 4) {
+        cv::cvtColor(m_cvImage, cvImageRGB, cv::COLOR_BGRA2RGBA);
+    } else {
+        cvImageRGB = m_cvImage.clone();
+    }
+    
+    QImage::Format format;
+    if (cvImageRGB.channels() == 1) {
+        format = QImage::Format_Grayscale8;
+    } else if (cvImageRGB.channels() == 4) {
+        format = QImage::Format_RGBA8888;
+    } else {
+        format = QImage::Format_RGB888;
+    }
+    
+    QImage qImage(
+        cvImageRGB.data,
+        cvImageRGB.cols,
+        cvImageRGB.rows,
+        static_cast<int>(cvImageRGB.step),
+        format
+    );
+    
+    m_originalPixmap = QPixmap::fromImage(qImage.copy());
 }
