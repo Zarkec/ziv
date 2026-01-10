@@ -256,6 +256,38 @@ void ImageViewer::rotate180()
     emit scaleChanged();
 }
 
+void ImageViewer::flipHorizontal()
+{
+    if (!m_view->isEnabled() || !m_pixmapItem) {
+        return;
+    }
+    
+    QImage image = m_originalPixmap.toImage();
+    QImage flippedImage = image.mirrored(true, false);
+    
+    m_originalPixmap = QPixmap::fromImage(flippedImage);
+    m_pixmapItem->setPixmap(m_originalPixmap);
+    m_scene->setSceneRect(m_originalPixmap.rect());
+    
+    emit scaleChanged();
+}
+
+void ImageViewer::flipVertical()
+{
+    if (!m_view->isEnabled() || !m_pixmapItem) {
+        return;
+    }
+    
+    QImage image = m_originalPixmap.toImage();
+    QImage flippedImage = image.mirrored(false, true);
+    
+    m_originalPixmap = QPixmap::fromImage(flippedImage);
+    m_pixmapItem->setPixmap(m_originalPixmap);
+    m_scene->setSceneRect(m_originalPixmap.rect());
+    
+    emit scaleChanged();
+}
+
 void ImageViewer::applyZoom(int percent)
 {
     if (!m_view->isEnabled() || !m_pixmapItem) {

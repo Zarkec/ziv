@@ -131,6 +131,12 @@ void MainWindow::setupActions()
     QAction *rotate180Action = new QAction("旋转180度(&O)", this);
     rotate180Action->setShortcut(tr("Ctrl+O"));
     
+    QAction *flipHorizontalAction = new QAction("水平翻转(&H)", this);
+    flipHorizontalAction->setShortcut(tr("Ctrl+H"));
+    
+    QAction *flipVerticalAction = new QAction("垂直翻转(&V)", this);
+    flipVerticalAction->setShortcut(tr("Ctrl+V"));
+    
     m_measureAction = new QAction("测量模式(&M)", this);
     m_measureAction->setCheckable(true);
     m_measureAction->setShortcut(tr("Ctrl+M"));
@@ -141,6 +147,9 @@ void MainWindow::setupActions()
     viewMenu->addAction(rotateLeftAction);
     viewMenu->addAction(rotateRightAction);
     viewMenu->addAction(rotate180Action);
+    viewMenu->addSeparator();
+    viewMenu->addAction(flipHorizontalAction);
+    viewMenu->addAction(flipVerticalAction);
     viewMenu->addSeparator();
     viewMenu->addAction(m_measureAction);
     viewMenu->addSeparator();
@@ -157,6 +166,9 @@ void MainWindow::setupActions()
     toolBar->addAction(rotateRightAction);
     toolBar->addAction(rotate180Action);
     toolBar->addSeparator();
+    toolBar->addAction(flipHorizontalAction);
+    toolBar->addAction(flipVerticalAction);
+    toolBar->addSeparator();
     toolBar->addAction(m_measureAction);
     toolBar->addSeparator();
     toolBar->addAction(m_fitToWindowAction);
@@ -168,6 +180,8 @@ void MainWindow::setupActions()
     connect(rotateLeftAction, &QAction::triggered, this, &MainWindow::rotateLeft);
     connect(rotateRightAction, &QAction::triggered, this, &MainWindow::rotateRight);
     connect(rotate180Action, &QAction::triggered, this, &MainWindow::rotate180);
+    connect(flipHorizontalAction, &QAction::triggered, this, &MainWindow::flipHorizontal);
+    connect(flipVerticalAction, &QAction::triggered, this, &MainWindow::flipVertical);
     connect(m_measureAction, &QAction::triggered, this, &MainWindow::toggleMeasureMode);
     connect(m_fitToWindowAction, &QAction::triggered, this, &MainWindow::fitToWindow);
     connect(originalSizeAction, &QAction::triggered, this, &MainWindow::originalSize);
@@ -292,6 +306,16 @@ void MainWindow::rotateRight()
 void MainWindow::rotate180()
 {
     m_imageViewer->rotate180();
+}
+
+void MainWindow::flipHorizontal()
+{
+    m_imageViewer->flipHorizontal();
+}
+
+void MainWindow::flipVertical()
+{
+    m_imageViewer->flipVertical();
 }
 
 void MainWindow::toggleMeasureMode()

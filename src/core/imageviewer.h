@@ -33,6 +33,8 @@ public:
     void rotateLeft();
     void rotateRight();
     void rotate180();
+    void flipHorizontal();
+    void flipVertical();
     void applyZoom(int percent);
     void updateCoordinates(QPointF scenePos);
     

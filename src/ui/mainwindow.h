@@ -34,6 +34,8 @@ private slots:
     void rotateLeft();
     void rotateRight();
     void rotate180();
+    void flipHorizontal();
+    void flipVertical();
     void toggleMeasureMode();
 
 protected:
