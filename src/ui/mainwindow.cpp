@@ -10,6 +10,7 @@
 #include <QCursor>
 #include <QSlider>
 #include <QSpinBox>
+#include <QIcon>
 #include <QHBoxLayout>
 #include <QProgressDialog>
 #include <QThread>
@@ -97,6 +98,7 @@ void MainWindow::setupUI()
     resize(1200, 750);
     setMinimumSize(550, 400);
     setWindowTitle("图片查看器");
+    setWindowIcon(QIcon(":/icons/icon.png"));
     
     m_imageViewer = new ImageViewer(m_graphicsView, m_graphicsScene, this);
     m_imageViewer->setCoordinateLabel(m_coordinateLabel);

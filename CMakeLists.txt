@@ -1,52 +1,139 @@
-cmake_minimum_required(VERSION 3.19)
-project(ziv LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.16)
 
-# 设置OpenCV路径
+project(ziv VERSION 1.0.0 LANGUAGES CXX)
+
+# -------------------------------------------------
+# 基础 CMake / Qt 自动化配置
+# -------------------------------------------------
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# UI 文件搜索路径（AUTOUIC）
+set(CMAKE_AUTOUIC_SEARCH_PATHS
+    ${CMAKE_SOURCE_DIR}/src/ui
+    ${CMAKE_SOURCE_DIR}/src/core
+)
+
+# -------------------------------------------------
+# OpenCV
+# -------------------------------------------------
 set(OpenCV_DIR "D:/Project/opencv-mingw/x64/mingw/lib")
-
-# 查找OpenCV包
 find_package(OpenCV REQUIRED)
 
-# 查找Qt包
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Concurrent)
+# -------------------------------------------------
+# Qt（优先 Qt6，兼容 Qt5）
+# -------------------------------------------------
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Widgets Concurrent)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets Concurrent)
 
-qt_standard_project_setup()
+message(STATUS "Found Qt version: ${QT_VERSION_MAJOR}.${QT_VERSION_MINOR}.${QT_VERSION_PATCH}")
+
+# -------------------------------------------------
+# 源码组织
+# -------------------------------------------------
+set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
+
+set(CORE_SOURCES
+    ${SRC_DIR}/core/imagegraphicsview.cpp
+    ${SRC_DIR}/core/imageviewer.cpp
+    ${SRC_DIR}/core/measurementtool.cpp
+)
+
+set(CORE_HEADERS
+    ${SRC_DIR}/core/imagegraphicsview.h
+    ${SRC_DIR}/core/imageviewer.h
+    ${SRC_DIR}/core/measurementtool.h
+)
+
+set(UI_SOURCES
+    ${SRC_DIR}/ui/mainwindow.cpp
+)
+
+set(UI_HEADERS
+    ${SRC_DIR}/ui/mainwindow.h
+)
+
+set(MAIN_SOURCES
+    ${SRC_DIR}/main.cpp
+)
+
+set(ALL_SOURCES
+    ${CORE_SOURCES}
+    ${CORE_HEADERS}
+    ${UI_SOURCES}
+    ${UI_HEADERS}
+    ${MAIN_SOURCES}
+)
+
+# -------------------------------------------------
+# 资源文件
+# -------------------------------------------------
+set(RESOURCES
+    resources/common.qrc
+)
+
+# -------------------------------------------------
+# 可执行目标
+# -------------------------------------------------
 
 qt_add_executable(ziv
     WIN32 MACOSX_BUNDLE
-    src/main.cpp
-    src/ui/mainwindow.cpp
-    src/ui/mainwindow.h
-    src/core/imagegraphicsview.cpp
-    src/core/imagegraphicsview.h
-    src/core/imageviewer.cpp
-    src/core/imageviewer.h
-    src/core/measurementtool.cpp
-    src/core/measurementtool.h
+    MANUAL_FINALIZATION
+    ${ALL_SOURCES}
+    ${RESOURCES}
 )
 
-target_link_libraries(ziv
-    PRIVATE
-        Qt::Core
-        Qt::Widgets
-        Qt::Concurrent
-        ${OpenCV_LIBS}
+# -------------------------------------------------
+# 头文件搜索路径
+# -------------------------------------------------
+target_include_directories(ziv PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${SRC_DIR}
+    ${SRC_DIR}/core
+    ${SRC_DIR}/ui
+    ${CMAKE_BINARY_DIR}
+    ${OpenCV_INCLUDE_DIRS}
 )
 
-# 添加OpenCV头文件路径
-target_include_directories(ziv PRIVATE ${OpenCV_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/src)
+# -------------------------------------------------
+# 链接库
+# -------------------------------------------------
+target_link_libraries(ziv PRIVATE
+    Qt${QT_VERSION_MAJOR}::Core
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Concurrent
+    ${OpenCV_LIBS}
+)
 
+# -------------------------------------------------
+# Qt6 finalize（必须）
+# -------------------------------------------------
+if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
+    qt_finalize_executable(ziv)
+endif()
+
+# -------------------------------------------------
+# 安装 & windeployqt 自动部署（Windows）
+# -------------------------------------------------
 include(GNUInstallDirs)
 
 install(TARGETS ziv
     BUNDLE  DESTINATION .
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
-qt_generate_deploy_app_script(
-    TARGET ziv
-    OUTPUT_SCRIPT deploy_script
-    NO_UNSUPPORTED_PLATFORM_ERROR
-)
-install(SCRIPT ${deploy_script})
+if(WIN32 AND QT_VERSION_MAJOR GREATER_EQUAL 6)
+    qt_generate_deploy_app_script(
+        TARGET ziv
+        OUTPUT_SCRIPT deploy_script
+        NO_UNSUPPORTED_PLATFORM_ERROR
+    )
+    install(SCRIPT ${deploy_script})
+endif()
