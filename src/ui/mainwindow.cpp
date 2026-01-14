@@ -95,7 +95,7 @@ void MainWindow::setupUI()
     m_zoomSpinBox->setEnabled(false);
     statusBar()->addPermanentWidget(m_zoomSpinBox);
     
-    resize(1200, 750);
+    resize(1000, 600);
     setMinimumSize(550, 400);
     setWindowTitle("图片查看器");
     setWindowIcon(QIcon(":/icons/icon.png"));

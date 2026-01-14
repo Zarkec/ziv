@@ -237,7 +237,7 @@ void ImageViewer::flipHorizontal()
     }
     
     cv::Mat flipped;
-    cv::flip(m_cvImage, flipped, 1);
+    cv::flip(m_cvImage, flipped, 0);
     m_cvImage = flipped;
     
     updatePixmapFromMat();
@@ -254,7 +254,7 @@ void ImageViewer::flipVertical()
     }
     
     cv::Mat flipped;
-    cv::flip(m_cvImage, flipped, 0);
+    cv::flip(m_cvImage, flipped, 1);
     m_cvImage = flipped;
     
     updatePixmapFromMat();
