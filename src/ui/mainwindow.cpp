@@ -116,42 +116,54 @@ void MainWindow::setupActions()
     QMenu *fileMenu = menuBar()->addMenu("文件(&F)");
     QMenu *viewMenu = menuBar()->addMenu("视图(&V)");
     
-    QAction *openAction = new QAction("打开(&O)", this);
+    QAction *openAction = new QAction("打开", this);
+    openAction->setIcon(QIcon(":/icons/open.png"));
     openAction->setShortcut(QKeySequence::Open);
     fileMenu->addAction(openAction);
     
-    QAction *exportAction = new QAction("导出(&E)", this);
+    QAction *exportAction = new QAction("导出", this);
+    exportAction->setIcon(QIcon(":/icons/export.png"));
     exportAction->setShortcut(QKeySequence::Save);
     fileMenu->addAction(exportAction);
     
-    QAction *zoomInAction = new QAction("放大(&+)", this);
+    QAction *zoomInAction = new QAction("放大", this);
+    zoomInAction->setIcon(QIcon(":/icons/zoom_in.png"));
     zoomInAction->setShortcut(QKeySequence::ZoomIn);
     
-    QAction *zoomOutAction = new QAction("缩小(&-)", this);
+    QAction *zoomOutAction = new QAction("缩小", this);
+    zoomOutAction->setIcon(QIcon(":/icons/zoom_out.png"));
     zoomOutAction->setShortcut(QKeySequence::ZoomOut);
     
-    m_fitToWindowAction = new QAction("适应窗口(&W)", this);
+    m_fitToWindowAction = new QAction("适应窗口", this);
+    m_fitToWindowAction->setIcon(QIcon(":/icons/fit_to_window.png"));
     m_fitToWindowAction->setCheckable(true);
     
-    QAction *originalSizeAction = new QAction("原始大小(&1)", this);
+    QAction *originalSizeAction = new QAction("原始大小", this);
+    originalSizeAction->setIcon(QIcon(":/icons/original_size.png"));
     originalSizeAction->setShortcut(tr("Ctrl+1"));
     
-    QAction *rotateLeftAction = new QAction("向左旋转(&L)", this);
+    QAction *rotateLeftAction = new QAction("向左旋转", this);
+    rotateLeftAction->setIcon(QIcon(":/icons/rotate_left.png"));
     rotateLeftAction->setShortcut(tr("Ctrl+L"));
     
-    QAction *rotateRightAction = new QAction("向右旋转(&R)", this);
+    QAction *rotateRightAction = new QAction("向右旋转", this);
+    rotateRightAction->setIcon(QIcon(":/icons/rotate_right.png"));
     rotateRightAction->setShortcut(tr("Ctrl+R"));
     
-    QAction *rotate180Action = new QAction("旋转180度(&O)", this);
+    QAction *rotate180Action = new QAction("旋转180度", this);
+    rotate180Action->setIcon(QIcon(":/icons/rotate_180.png"));
     rotate180Action->setShortcut(tr("Ctrl+O"));
     
-    QAction *flipHorizontalAction = new QAction("水平翻转(&H)", this);
+    QAction *flipHorizontalAction = new QAction("水平翻转", this);
+    flipHorizontalAction->setIcon(QIcon(":/icons/flip_horizontal.png"));
     flipHorizontalAction->setShortcut(tr("Ctrl+H"));
     
-    QAction *flipVerticalAction = new QAction("垂直翻转(&V)", this);
+    QAction *flipVerticalAction = new QAction("垂直翻转", this);
+    flipVerticalAction->setIcon(QIcon(":/icons/flip_vertical.png"));
     flipVerticalAction->setShortcut(tr("Ctrl+V"));
     
-    m_measureAction = new QAction("测量模式(&M)", this);
+    m_measureAction = new QAction("测量模式", this);
+    m_measureAction->setIcon(QIcon(":/icons/measure.png"));
     m_measureAction->setCheckable(true);
     m_measureAction->setShortcut(tr("Ctrl+M"));
     
@@ -171,6 +183,7 @@ void MainWindow::setupActions()
     viewMenu->addAction(originalSizeAction);
     
     QToolBar *toolBar = addToolBar("查看工具栏");
+    toolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
     toolBar->addAction(openAction);
     toolBar->addAction(exportAction);
     toolBar->addSeparator();

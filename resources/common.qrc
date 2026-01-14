@@ -2,5 +2,17 @@
 <RCC version="1.0">
   <qresource prefix="/">
     <file>icons/icon.png</file>
+    <file>icons/open.png</file>
+    <file>icons/export.png</file>
+    <file>icons/zoom_in.png</file>
+    <file>icons/zoom_out.png</file>
+    <file>icons/rotate_left.png</file>
+    <file>icons/rotate_right.png</file>
+    <file>icons/rotate_180.png</file>
+    <file>icons/flip_horizontal.png</file>
+    <file>icons/flip_vertical.png</file>
+    <file>icons/measure.png</file>
+    <file>icons/fit_to_window.png</file>
+    <file>icons/original_size.png</file>
   </qresource>
 </RCC>
