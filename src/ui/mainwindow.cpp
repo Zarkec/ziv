@@ -182,7 +182,9 @@ void MainWindow::setupActions()
     viewMenu->addAction(m_fitToWindowAction);
     viewMenu->addAction(originalSizeAction);
     
-    QToolBar *toolBar = addToolBar("查看工具栏");
+    QToolBar *toolBar = new QToolBar("查看工具栏", this);
+    addToolBar(Qt::LeftToolBarArea, toolBar);
+    toolBar->setAllowedAreas(Qt::LeftToolBarArea | Qt::RightToolBarArea);
     toolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
     toolBar->addAction(openAction);
     toolBar->addAction(exportAction);
