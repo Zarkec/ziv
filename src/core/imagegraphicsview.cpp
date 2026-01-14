@@ -63,10 +63,10 @@ void ImageGraphicsView::wheelEvent(QWheelEvent *event)
         qreal currentScale = transform().m11() * 100;
         qreal newScale = currentScale * scaleFactor;
         
-        if ((scaleFactor > 1 && currentScale < 100000) || (scaleFactor < 1 && currentScale > 1)) {
+        if ((scaleFactor > 1 && currentScale < 3200) || (scaleFactor < 1 && currentScale > 1)) {
             qreal actualScaleFactor = scaleFactor;
-            if (scaleFactor > 1 && currentScale < 100000) {
-                actualScaleFactor = 100000 / currentScale;
+            if (scaleFactor > 1 && currentScale < 3200) {
+                actualScaleFactor = 3200 / currentScale;
                 actualScaleFactor = qMin(actualScaleFactor, 1.15);
             } else if (scaleFactor < 1 && currentScale > 1) {
                 actualScaleFactor = 1.0 / 1.15;

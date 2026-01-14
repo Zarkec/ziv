@@ -14,6 +14,8 @@
     <file>icons/light/measure.png</file>
     <file>icons/light/fit_to_window.png</file>
     <file>icons/light/original_size.png</file>
+    <file>icons/light/previous.png</file>
+    <file>icons/light/next.png</file>
     <file>icons/dark/open.png</file>
     <file>icons/dark/export.png</file>
     <file>icons/dark/zoom_in.png</file>
@@ -26,5 +28,7 @@
     <file>icons/dark/measure.png</file>
     <file>icons/dark/fit_to_window.png</file>
     <file>icons/dark/original_size.png</file>
+    <file>icons/dark/previous.png</file>
+    <file>icons/dark/next.png</file>
   </qresource>
 </RCC>

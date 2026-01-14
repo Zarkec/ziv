@@ -80,15 +80,19 @@ void MainWindow::setupUI()
     m_scaleLabel = new QLabel("缩放:", this);
     m_sizeLabel = new QLabel("尺寸: 0x0", this);
     m_imageSizeLabel = new QLabel("图片大小: 0 B", this);
+    m_imageIndexLabel = new QLabel("0/0", this);
+    m_loadingLabel = new QLabel("", this);
     
     statusBar()->addWidget(m_coordinateLabel);
+    statusBar()->addPermanentWidget(m_loadingLabel);
+    statusBar()->addPermanentWidget(m_imageIndexLabel);
     statusBar()->addPermanentWidget(m_imageSizeLabel);
     statusBar()->addPermanentWidget(m_sizeLabel);
     statusBar()->addPermanentWidget(m_scaleLabel);
     
     m_zoomSlider = new QSlider(Qt::Horizontal, this);
     m_zoomSlider->setMinimum(1);
-    m_zoomSlider->setMaximum(10000);
+    m_zoomSlider->setMaximum(3200);
     m_zoomSlider->setValue(100);
     m_zoomSlider->setEnabled(false);
     m_zoomSlider->setFixedWidth(150);
@@ -96,7 +100,7 @@ void MainWindow::setupUI()
     
     m_zoomSpinBox = new QSpinBox(this);
     m_zoomSpinBox->setMinimum(1);
-    m_zoomSpinBox->setMaximum(10000);
+    m_zoomSpinBox->setMaximum(3200);
     m_zoomSpinBox->setValue(100);
     m_zoomSpinBox->setSuffix("%");
     m_zoomSpinBox->setFixedWidth(80);
@@ -115,6 +119,7 @@ void MainWindow::setupUI()
     m_imageViewer->setImageSizeLabel(m_imageSizeLabel);
     m_imageViewer->setZoomSlider(m_zoomSlider);
     m_imageViewer->setZoomSpinBox(m_zoomSpinBox);
+    m_imageViewer->setImageIndexLabel(m_imageIndexLabel);
     
     m_measurementTool = new MeasurementTool(m_graphicsScene, m_graphicsView, this);
 }
@@ -187,8 +192,21 @@ void MainWindow::setupActions()
     m_measureAction->setShortcut(tr("Ctrl+M"));
     m_iconActions["measure"] = m_measureAction;
     
+    QAction *previousImageAction = new QAction("上一张", this);
+    previousImageAction->setIcon(QIcon(":/icons/light/previous.png"));
+    previousImageAction->setShortcut(Qt::Key_Left);
+    m_iconActions["previous"] = previousImageAction;
+    
+    QAction *nextImageAction = new QAction("下一张", this);
+    nextImageAction->setIcon(QIcon(":/icons/light/next.png"));
+    nextImageAction->setShortcut(Qt::Key_Right);
+    m_iconActions["next"] = nextImageAction;
+    
     viewMenu->addAction(zoomInAction);
     viewMenu->addAction(zoomOutAction);
+    viewMenu->addSeparator();
+    viewMenu->addAction(previousImageAction);
+    viewMenu->addAction(nextImageAction);
     viewMenu->addSeparator();
     viewMenu->addAction(rotateLeftAction);
     viewMenu->addAction(rotateRightAction);
@@ -219,6 +237,9 @@ void MainWindow::setupActions()
     toolBar->addAction(flipHorizontalAction);
     toolBar->addAction(flipVerticalAction);
     toolBar->addSeparator();
+    toolBar->addAction(previousImageAction);
+    toolBar->addAction(nextImageAction);
+    toolBar->addSeparator();
     toolBar->addAction(m_measureAction);
     toolBar->addSeparator();
     toolBar->addAction(m_fitToWindowAction);
@@ -233,6 +254,8 @@ void MainWindow::setupActions()
     connect(rotate180Action, &QAction::triggered, this, &MainWindow::rotate180);
     connect(flipHorizontalAction, &QAction::triggered, this, &MainWindow::flipHorizontal);
     connect(flipVerticalAction, &QAction::triggered, this, &MainWindow::flipVertical);
+    connect(previousImageAction, &QAction::triggered, this, &MainWindow::previousImage);
+    connect(nextImageAction, &QAction::triggered, this, &MainWindow::nextImage);
     connect(m_measureAction, &QAction::triggered, this, &MainWindow::toggleMeasureMode);
     connect(m_fitToWindowAction, &QAction::triggered, this, &MainWindow::fitToWindow);
     connect(originalSizeAction, &QAction::triggered, this, &MainWindow::originalSize);
@@ -309,6 +332,15 @@ void MainWindow::setupConnections()
     
     connect(m_imageViewer, &ImageViewer::scaleChanged, this, [this]() {
         m_measurementTool->clearMeasurement();
+    });
+    
+    connect(m_imageViewer, &ImageViewer::imageLoadingStarted, this, [this]() {
+        m_loadingLabel->setText(tr("加载中..."));
+        m_loadingLabel->setStyleSheet("color: #FFA500;");
+    });
+    
+    connect(m_imageViewer, &ImageViewer::imageLoadingFinished, this, [this]() {
+        m_loadingLabel->setText("");
     });
 }
 
@@ -413,6 +445,16 @@ void MainWindow::flipVertical()
 void MainWindow::toggleMeasureMode()
 {
     m_measurementTool->toggleMeasureMode(m_measureAction->isChecked());
+}
+
+void MainWindow::nextImage()
+{
+    m_imageViewer->nextImage();
+}
+
+void MainWindow::previousImage()
+{
+    m_imageViewer->previousImage();
 }
 
 void MainWindow::onPaletteChanged()

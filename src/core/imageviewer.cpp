@@ -2,6 +2,8 @@
 #include <QMessageBox>
 #include <QFile>
 #include <QFileInfo>
+#include <QDir>
+#include <QSettings>
 #include <QtConcurrent>
 #include <opencv2/opencv.hpp>
 #include "core/imagegraphicsview.h"
@@ -15,10 +17,13 @@ ImageViewer::ImageViewer(ImageGraphicsView *view, QGraphicsScene *scene, QObject
     , m_scaleLabel(nullptr)
     , m_sizeLabel(nullptr)
     , m_imageSizeLabel(nullptr)
+    , m_imageIndexLabel(nullptr)
     , m_zoomSlider(nullptr)
     , m_zoomSpinBox(nullptr)
     , m_isFitToWindow(false)
     , m_fileSize(0)
+    , m_currentImageIndex(-1)
+    , m_settings(new QSettings("ZivImageViewer", "ImageViewer", this))
 {
 }
 
@@ -52,15 +57,37 @@ void ImageViewer::setZoomSpinBox(QSpinBox *spinBox)
     m_zoomSpinBox = spinBox;
 }
 
+void ImageViewer::setImageIndexLabel(QLabel *label)
+{
+    m_imageIndexLabel = label;
+}
+
 void ImageViewer::openImage(const QString &fileName)
 {
     if (fileName.isEmpty()) {
         return;
     }
     
+    emit imageLoadingStarted();
+    
+    QFileInfo fileInfo(fileName);
+    QString directoryPath = fileInfo.absolutePath();
+    
+    if (m_currentDirectory != directoryPath) {
+        m_currentDirectory = directoryPath;
+        loadImagesFromDirectory(directoryPath);
+        loadSavedPosition();
+    }
+    
+    m_currentImageIndex = m_imageList.indexOf(fileName);
+    if (m_currentImageIndex < 0) {
+        m_currentImageIndex = 0;
+    }
+    
     QFile file(fileName);
     if (!file.open(QIODevice::ReadOnly)) {
         QMessageBox::warning(nullptr, tr("错误"), tr("无法打开图片文件: %1").arg(fileName));
+        emit imageLoadingFinished();
         return;
     }
     
@@ -73,6 +100,7 @@ void ImageViewer::openImage(const QString &fileName)
     cv::Mat cvImage = cv::imdecode(matData, cv::IMREAD_UNCHANGED);
     if (cvImage.empty()) {
         QMessageBox::warning(nullptr, tr("错误"), tr("无法解码图片文件: %1").arg(fileName));
+        emit imageLoadingFinished();
         return;
     }
     
@@ -101,8 +129,11 @@ void ImageViewer::openImage(const QString &fileName)
     
     updateSizeInfo();
     updateScaleInfo();
+    updateImageIndexLabel();
     
     emit imageLoaded(fileName);
+    emit imageIndexChanged(m_currentImageIndex + 1, m_imageList.size());
+    emit imageLoadingFinished();
 }
 
 void ImageViewer::zoomIn()
@@ -112,11 +143,11 @@ void ImageViewer::zoomIn()
     }
     
     qreal currentScale = m_view->transform().m11() * 100;
-    
-    if (currentScale < 100000) {
+
+    if (currentScale < 3200) {
         qreal maxScaleFactor = 1.2;
-        if (currentScale * 1.2 > 100000) {
-            maxScaleFactor = 100000 / currentScale;
+        if (currentScale * 1.2 > 3200) {
+            maxScaleFactor = 3200 / currentScale;
         }
         m_view->scale(maxScaleFactor, maxScaleFactor);
         updateScaleInfo();
@@ -499,4 +530,85 @@ void ImageViewer::updatePixmapFromMat()
     );
     
     m_originalPixmap = QPixmap::fromImage(qImage.copy());
+}
+
+void ImageViewer::loadImagesFromDirectory(const QString &directoryPath)
+{
+    m_imageList.clear();
+    
+    QDir dir(directoryPath);
+    if (!dir.exists()) {
+        return;
+    }
+    
+    QStringList filters;
+    filters << "*.png" << "*.jpg" << "*.jpeg" << "*.bmp" << "*.tiff" << "*.tif" << "*.webp";
+    
+    dir.setNameFilters(filters);
+    dir.setSorting(QDir::Name | QDir::IgnoreCase);
+    
+    QFileInfoList fileList = dir.entryInfoList(QDir::Files);
+    for (const QFileInfo &fileInfo : fileList) {
+        m_imageList.append(fileInfo.absoluteFilePath());
+    }
+}
+
+void ImageViewer::saveCurrentPosition()
+{
+    if (!m_currentDirectory.isEmpty() && m_currentImageIndex >= 0) {
+        m_settings->setValue("lastDirectory", m_currentDirectory);
+        m_settings->setValue("lastImageIndex", m_currentImageIndex);
+    }
+}
+
+void ImageViewer::loadSavedPosition()
+{
+    QString savedDirectory = m_settings->value("lastDirectory").toString();
+    if (savedDirectory == m_currentDirectory) {
+        int savedIndex = m_settings->value("lastImageIndex", -1).toInt();
+        if (savedIndex >= 0 && savedIndex < m_imageList.size()) {
+            m_currentImageIndex = savedIndex;
+        }
+    }
+}
+
+void ImageViewer::updateImageIndexLabel()
+{
+    if (m_imageIndexLabel && !m_imageList.isEmpty()) {
+        m_imageIndexLabel->setText(tr("%1/%2").arg(m_currentImageIndex + 1).arg(m_imageList.size()));
+    } else if (m_imageIndexLabel) {
+        m_imageIndexLabel->setText("0/0");
+    }
+}
+
+void ImageViewer::nextImage()
+{
+    if (m_imageList.isEmpty()) {
+        return;
+    }
+    
+    saveCurrentPosition();
+    
+    m_currentImageIndex++;
+    if (m_currentImageIndex >= m_imageList.size()) {
+        m_currentImageIndex = 0;
+    }
+    
+    openImage(m_imageList[m_currentImageIndex]);
+}
+
+void ImageViewer::previousImage()
+{
+    if (m_imageList.isEmpty()) {
+        return;
+    }
+    
+    saveCurrentPosition();
+    
+    m_currentImageIndex--;
+    if (m_currentImageIndex < 0) {
+        m_currentImageIndex = m_imageList.size() - 1;
+    }
+    
+    openImage(m_imageList[m_currentImageIndex]);
 }

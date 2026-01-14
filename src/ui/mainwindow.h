@@ -38,6 +38,8 @@ private slots:
     void flipVertical();
     void exportImage();
     void toggleMeasureMode();
+    void nextImage();
+    void previousImage();
     void onPaletteChanged();
 
 protected:
@@ -56,6 +58,8 @@ private:
     QLabel *m_scaleLabel;
     QLabel *m_sizeLabel;
     QLabel *m_imageSizeLabel;
+    QLabel *m_imageIndexLabel;
+    QLabel *m_loadingLabel;
     QAction *m_fitToWindowAction;
     QAction *m_measureAction;
     
