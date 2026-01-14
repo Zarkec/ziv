@@ -2,17 +2,29 @@
 <RCC version="1.0">
   <qresource prefix="/">
     <file>icons/icon.png</file>
-    <file>icons/open.png</file>
-    <file>icons/export.png</file>
-    <file>icons/zoom_in.png</file>
-    <file>icons/zoom_out.png</file>
-    <file>icons/rotate_left.png</file>
-    <file>icons/rotate_right.png</file>
-    <file>icons/rotate_180.png</file>
-    <file>icons/flip_horizontal.png</file>
-    <file>icons/flip_vertical.png</file>
-    <file>icons/measure.png</file>
-    <file>icons/fit_to_window.png</file>
-    <file>icons/original_size.png</file>
+    <file>icons/light/open.png</file>
+    <file>icons/light/export.png</file>
+    <file>icons/light/zoom_in.png</file>
+    <file>icons/light/zoom_out.png</file>
+    <file>icons/light/rotate_left.png</file>
+    <file>icons/light/rotate_right.png</file>
+    <file>icons/light/rotate_180.png</file>
+    <file>icons/light/flip_horizontal.png</file>
+    <file>icons/light/flip_vertical.png</file>
+    <file>icons/light/measure.png</file>
+    <file>icons/light/fit_to_window.png</file>
+    <file>icons/light/original_size.png</file>
+    <file>icons/dark/open.png</file>
+    <file>icons/dark/export.png</file>
+    <file>icons/dark/zoom_in.png</file>
+    <file>icons/dark/zoom_out.png</file>
+    <file>icons/dark/rotate_left.png</file>
+    <file>icons/dark/rotate_right.png</file>
+    <file>icons/dark/rotate_180.png</file>
+    <file>icons/dark/flip_horizontal.png</file>
+    <file>icons/dark/flip_vertical.png</file>
+    <file>icons/dark/measure.png</file>
+    <file>icons/dark/fit_to_window.png</file>
+    <file>icons/dark/original_size.png</file>
   </qresource>
 </RCC>

@@ -16,6 +16,9 @@
 #include <QThread>
 #include <QtConcurrent>
 #include <QCoreApplication>
+#include <QMap>
+#include <QGuiApplication>
+#include <QStyleHints>
 
 #include "core/imagegraphicsview.h"
 #include "core/imageviewer.h"
@@ -34,10 +37,15 @@ MainWindow::MainWindow(QWidget *parent)
     , m_measurementTool(nullptr)
     , m_zoomSlider(nullptr)
     , m_zoomSpinBox(nullptr)
+    , m_isDarkTheme(false)
 {
+    m_isDarkTheme = isSystemDarkTheme();
+    
     setupUI();
     setupActions();
     setupConnections();
+    
+    connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, &MainWindow::onPaletteChanged);
     
     m_graphicsView->setEnabled(false);
 }
@@ -117,55 +125,67 @@ void MainWindow::setupActions()
     QMenu *viewMenu = menuBar()->addMenu("视图(&V)");
     
     QAction *openAction = new QAction("打开", this);
-    openAction->setIcon(QIcon(":/icons/open.png"));
+    openAction->setIcon(QIcon(":/icons/light/open.png"));
     openAction->setShortcut(QKeySequence::Open);
     fileMenu->addAction(openAction);
+    m_iconActions["open"] = openAction;
     
     QAction *exportAction = new QAction("导出", this);
-    exportAction->setIcon(QIcon(":/icons/export.png"));
+    exportAction->setIcon(QIcon(":/icons/light/export.png"));
     exportAction->setShortcut(QKeySequence::Save);
     fileMenu->addAction(exportAction);
+    m_iconActions["export"] = exportAction;
     
     QAction *zoomInAction = new QAction("放大", this);
-    zoomInAction->setIcon(QIcon(":/icons/zoom_in.png"));
+    zoomInAction->setIcon(QIcon(":/icons/light/zoom_in.png"));
     zoomInAction->setShortcut(QKeySequence::ZoomIn);
+    m_iconActions["zoom_in"] = zoomInAction;
     
     QAction *zoomOutAction = new QAction("缩小", this);
-    zoomOutAction->setIcon(QIcon(":/icons/zoom_out.png"));
+    zoomOutAction->setIcon(QIcon(":/icons/light/zoom_out.png"));
     zoomOutAction->setShortcut(QKeySequence::ZoomOut);
+    m_iconActions["zoom_out"] = zoomOutAction;
     
     m_fitToWindowAction = new QAction("适应窗口", this);
-    m_fitToWindowAction->setIcon(QIcon(":/icons/fit_to_window.png"));
+    m_fitToWindowAction->setIcon(QIcon(":/icons/light/fit_to_window.png"));
     m_fitToWindowAction->setCheckable(true);
+    m_iconActions["fit_to_window"] = m_fitToWindowAction;
     
     QAction *originalSizeAction = new QAction("原始大小", this);
-    originalSizeAction->setIcon(QIcon(":/icons/original_size.png"));
+    originalSizeAction->setIcon(QIcon(":/icons/light/original_size.png"));
     originalSizeAction->setShortcut(tr("Ctrl+1"));
+    m_iconActions["original_size"] = originalSizeAction;
     
     QAction *rotateLeftAction = new QAction("向左旋转", this);
-    rotateLeftAction->setIcon(QIcon(":/icons/rotate_left.png"));
+    rotateLeftAction->setIcon(QIcon(":/icons/light/rotate_left.png"));
     rotateLeftAction->setShortcut(tr("Ctrl+L"));
+    m_iconActions["rotate_left"] = rotateLeftAction;
     
     QAction *rotateRightAction = new QAction("向右旋转", this);
-    rotateRightAction->setIcon(QIcon(":/icons/rotate_right.png"));
+    rotateRightAction->setIcon(QIcon(":/icons/light/rotate_right.png"));
     rotateRightAction->setShortcut(tr("Ctrl+R"));
+    m_iconActions["rotate_right"] = rotateRightAction;
     
     QAction *rotate180Action = new QAction("旋转180度", this);
-    rotate180Action->setIcon(QIcon(":/icons/rotate_180.png"));
+    rotate180Action->setIcon(QIcon(":/icons/light/rotate_180.png"));
     rotate180Action->setShortcut(tr("Ctrl+O"));
+    m_iconActions["rotate_180"] = rotate180Action;
     
     QAction *flipHorizontalAction = new QAction("水平翻转", this);
-    flipHorizontalAction->setIcon(QIcon(":/icons/flip_horizontal.png"));
+    flipHorizontalAction->setIcon(QIcon(":/icons/light/flip_horizontal.png"));
     flipHorizontalAction->setShortcut(tr("Ctrl+H"));
+    m_iconActions["flip_horizontal"] = flipHorizontalAction;
     
     QAction *flipVerticalAction = new QAction("垂直翻转", this);
-    flipVerticalAction->setIcon(QIcon(":/icons/flip_vertical.png"));
+    flipVerticalAction->setIcon(QIcon(":/icons/light/flip_vertical.png"));
     flipVerticalAction->setShortcut(tr("Ctrl+V"));
+    m_iconActions["flip_vertical"] = flipVerticalAction;
     
     m_measureAction = new QAction("测量模式", this);
-    m_measureAction->setIcon(QIcon(":/icons/measure.png"));
+    m_measureAction->setIcon(QIcon(":/icons/light/measure.png"));
     m_measureAction->setCheckable(true);
     m_measureAction->setShortcut(tr("Ctrl+M"));
+    m_iconActions["measure"] = m_measureAction;
     
     viewMenu->addAction(zoomInAction);
     viewMenu->addAction(zoomOutAction);
@@ -216,6 +236,8 @@ void MainWindow::setupActions()
     connect(m_measureAction, &QAction::triggered, this, &MainWindow::toggleMeasureMode);
     connect(m_fitToWindowAction, &QAction::triggered, this, &MainWindow::fitToWindow);
     connect(originalSizeAction, &QAction::triggered, this, &MainWindow::originalSize);
+    
+    updateThemeIcons();
 }
 
 void MainWindow::setupConnections()
@@ -391,6 +413,28 @@ void MainWindow::flipVertical()
 void MainWindow::toggleMeasureMode()
 {
     m_measurementTool->toggleMeasureMode(m_measureAction->isChecked());
+}
+
+void MainWindow::onPaletteChanged()
+{
+    m_isDarkTheme = isSystemDarkTheme();
+    updateThemeIcons();
+}
+
+bool MainWindow::isSystemDarkTheme()
+{
+    return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+}
+
+void MainWindow::updateThemeIcons()
+{
+    QString themePath = m_isDarkTheme ? ":/icons/dark/" : ":/icons/light/";
+    
+    for (auto it = m_iconActions.begin(); it != m_iconActions.end(); ++it) {
+        QString iconName = it.key();
+        QAction *action = it.value();
+        action->setIcon(QIcon(themePath + iconName + ".png"));
+    }
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)

@@ -38,6 +38,7 @@ private slots:
     void flipVertical();
     void exportImage();
     void toggleMeasureMode();
+    void onPaletteChanged();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -46,6 +47,8 @@ private:
     void setupUI();
     void setupActions();
     void setupConnections();
+    void updateThemeIcons();
+    bool isSystemDarkTheme();
 
     ImageGraphicsView *m_graphicsView;
     QGraphicsScene *m_graphicsScene;
@@ -61,6 +64,9 @@ private:
     
     QSlider *m_zoomSlider;
     QSpinBox *m_zoomSpinBox;
+    
+    bool m_isDarkTheme;
+    QMap<QString, QAction*> m_iconActions;
 };
 
 #endif // MAINWINDOW_H
