@@ -73,9 +73,17 @@ set(ALL_SOURCES
 # -------------------------------------------------
 # 资源文件
 # -------------------------------------------------
+set(RESOURCES_DIR ${CMAKE_SOURCE_DIR}/resources)
 set(RESOURCES
-    resources/common.qrc
+    ${RESOURCES_DIR}/common.qrc
 )
+
+# -------------------------------------------------
+# Windows 资源文件（用于设置 exe 图标）
+# -------------------------------------------------
+if(WIN32)
+    set(WIN_RESOURCES ${RESOURCES_DIR}/app.rc)
+endif()
 
 # -------------------------------------------------
 # 可执行目标
@@ -86,6 +94,7 @@ qt_add_executable(ziv
     MANUAL_FINALIZATION
     ${ALL_SOURCES}
     ${RESOURCES}
+    ${WIN_RESOURCES}
 )
 
 # -------------------------------------------------
