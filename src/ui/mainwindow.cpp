@@ -42,6 +42,8 @@ MainWindow::MainWindow(QWidget *parent)
 {
     m_isDarkTheme = isSystemDarkTheme();
     
+    setAcceptDrops(true);
+    
     setupUI();
     setupActions();
     setupConnections();
@@ -55,6 +57,13 @@ MainWindow::~MainWindow()
 {
     delete m_imageViewer;
     delete m_measurementTool;
+}
+
+void MainWindow::openFile(const QString &fileName)
+{
+    if (!fileName.isEmpty()) {
+        m_imageViewer->openImage(fileName);
+    }
 }
 
 void MainWindow::setupUI()
@@ -524,4 +533,26 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
     m_imageViewer->resizeEvent();
+}
+
+void MainWindow::dragEnterEvent(QDragEnterEvent *event)
+{
+    if (event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    }
+}
+
+void MainWindow::dropEvent(QDropEvent *event)
+{
+    const QMimeData *mimeData = event->mimeData();
+    
+    if (mimeData->hasUrls()) {
+        QList<QUrl> urls = mimeData->urls();
+        if (!urls.isEmpty()) {
+            QString fileName = urls.first().toLocalFile();
+            openFile(fileName);
+        }
+    }
+    
+    event->acceptProposedAction();
 }

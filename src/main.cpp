@@ -6,10 +6,15 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
     
-    // 设置应用程序样式为Fusion
     a.setStyle("Fusion");
     
     MainWindow w;
     w.show();
+    
+    if (argc > 1) {
+        QString fileName = QString::fromLocal8Bit(argv[1]);
+        w.openFile(fileName);
+    }
+    
     return a.exec();
 }

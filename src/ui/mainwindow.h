@@ -12,6 +12,9 @@
 #include <QSlider>
 #include <QSpinBox>
 #include <QResizeEvent>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
 
 class ImageViewer;
 class MeasurementTool;
@@ -25,6 +28,8 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    
+    void openFile(const QString &fileName);
 
 private slots:
     void openImage();
@@ -46,6 +51,8 @@ private slots:
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
 private:
     void setupUI();
