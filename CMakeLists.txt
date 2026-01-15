@@ -42,12 +42,14 @@ set(CORE_SOURCES
     ${SRC_DIR}/core/imagegraphicsview.cpp
     ${SRC_DIR}/core/imageviewer.cpp
     ${SRC_DIR}/core/measurementtool.cpp
+    ${SRC_DIR}/core/anglemeasurementtool.cpp
 )
 
 set(CORE_HEADERS
     ${SRC_DIR}/core/imagegraphicsview.h
     ${SRC_DIR}/core/imageviewer.h
     ${SRC_DIR}/core/measurementtool.h
+    ${SRC_DIR}/core/anglemeasurementtool.h
 )
 
 set(UI_SOURCES

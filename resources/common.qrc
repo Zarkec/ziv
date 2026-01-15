@@ -12,6 +12,7 @@
     <file>icons/light/flip_horizontal.png</file>
     <file>icons/light/flip_vertical.png</file>
     <file>icons/light/measure.png</file>
+    <file>icons/light/angle.png</file>
     <file>icons/light/fit_to_window.png</file>
     <file>icons/light/original_size.png</file>
     <file>icons/light/previous.png</file>
@@ -26,6 +27,7 @@
     <file>icons/dark/flip_horizontal.png</file>
     <file>icons/dark/flip_vertical.png</file>
     <file>icons/dark/measure.png</file>
+    <file>icons/dark/angle.png</file>
     <file>icons/dark/fit_to_window.png</file>
     <file>icons/dark/original_size.png</file>
     <file>icons/dark/previous.png</file>

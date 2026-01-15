@@ -15,6 +15,7 @@
 
 class ImageViewer;
 class MeasurementTool;
+class AngleMeasurementTool;
 class ImageGraphicsView;
 
 class MainWindow : public QMainWindow
@@ -38,6 +39,7 @@ private slots:
     void flipVertical();
     void exportImage();
     void toggleMeasureMode();
+    void toggleAngleMode();
     void nextImage();
     void previousImage();
     void onPaletteChanged();
@@ -62,9 +64,11 @@ private:
     QLabel *m_loadingLabel;
     QAction *m_fitToWindowAction;
     QAction *m_measureAction;
+    QAction *m_angleAction;
     
     ImageViewer *m_imageViewer;
     MeasurementTool *m_measurementTool;
+    AngleMeasurementTool *m_angleMeasurementTool;
     
     QSlider *m_zoomSlider;
     QSpinBox *m_zoomSpinBox;

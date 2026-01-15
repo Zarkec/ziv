@@ -23,6 +23,7 @@
 #include "core/imagegraphicsview.h"
 #include "core/imageviewer.h"
 #include "core/measurementtool.h"
+#include "core/anglemeasurementtool.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -122,6 +123,7 @@ void MainWindow::setupUI()
     m_imageViewer->setImageIndexLabel(m_imageIndexLabel);
     
     m_measurementTool = new MeasurementTool(m_graphicsScene, m_graphicsView, this);
+    m_angleMeasurementTool = new AngleMeasurementTool(m_graphicsScene, m_graphicsView, this);
 }
 
 void MainWindow::setupActions()
@@ -192,6 +194,12 @@ void MainWindow::setupActions()
     m_measureAction->setShortcut(tr("Ctrl+M"));
     m_iconActions["measure"] = m_measureAction;
     
+    m_angleAction = new QAction("测角模式", this);
+    m_angleAction->setIcon(QIcon(":/icons/light/angle.png"));
+    m_angleAction->setCheckable(true);
+    m_angleAction->setShortcut(tr("Ctrl+A"));
+    m_iconActions["angle"] = m_angleAction;
+    
     QAction *previousImageAction = new QAction("上一张", this);
     previousImageAction->setIcon(QIcon(":/icons/light/previous.png"));
     previousImageAction->setShortcut(Qt::Key_Left);
@@ -216,6 +224,7 @@ void MainWindow::setupActions()
     viewMenu->addAction(flipVerticalAction);
     viewMenu->addSeparator();
     viewMenu->addAction(m_measureAction);
+    viewMenu->addAction(m_angleAction);
     viewMenu->addSeparator();
     viewMenu->addAction(m_fitToWindowAction);
     viewMenu->addAction(originalSizeAction);
@@ -241,6 +250,7 @@ void MainWindow::setupActions()
     toolBar->addAction(nextImageAction);
     toolBar->addSeparator();
     toolBar->addAction(m_measureAction);
+    toolBar->addAction(m_angleAction);
     toolBar->addSeparator();
     toolBar->addAction(m_fitToWindowAction);
     toolBar->addAction(originalSizeAction);
@@ -257,6 +267,7 @@ void MainWindow::setupActions()
     connect(previousImageAction, &QAction::triggered, this, &MainWindow::previousImage);
     connect(nextImageAction, &QAction::triggered, this, &MainWindow::nextImage);
     connect(m_measureAction, &QAction::triggered, this, &MainWindow::toggleMeasureMode);
+    connect(m_angleAction, &QAction::triggered, this, &MainWindow::toggleAngleMode);
     connect(m_fitToWindowAction, &QAction::triggered, this, &MainWindow::fitToWindow);
     connect(originalSizeAction, &QAction::triggered, this, &MainWindow::originalSize);
     
@@ -279,12 +290,14 @@ void MainWindow::setupConnections()
         if (m_imageViewer->pixmapItem() && m_graphicsScene->sceneRect().contains(scenePos)) {
             m_imageViewer->updateCoordinates(scenePos);
             m_measurementTool->handleMouseMove(scenePos);
+            m_angleMeasurementTool->handleMouseMove(scenePos);
         }
     });
     
     connect(m_graphicsView, &ImageGraphicsView::mousePressed, this, [this](QPointF scenePos) {
         if (m_imageViewer->pixmapItem() && m_graphicsScene->sceneRect().contains(scenePos)) {
             m_measurementTool->handleMousePress(scenePos);
+            m_angleMeasurementTool->handleMousePress(scenePos);
         }
     });
     
@@ -294,19 +307,31 @@ void MainWindow::setupConnections()
     
     connect(m_graphicsView, &ImageGraphicsView::shiftPressed, this, [this]() {
         m_measurementTool->setShiftPressed(true);
+        m_angleMeasurementTool->setShiftPressed(true);
         if (m_measurementTool->isMeasureMode()) {
             QPoint cursorPos = m_graphicsView->mapFromGlobal(QCursor::pos());
             QPointF scenePos = m_graphicsView->mapToScene(cursorPos);
             m_measurementTool->handleMouseMove(scenePos);
         }
+        if (m_angleMeasurementTool->isAngleMode()) {
+            QPoint cursorPos = m_graphicsView->mapFromGlobal(QCursor::pos());
+            QPointF scenePos = m_graphicsView->mapToScene(cursorPos);
+            m_angleMeasurementTool->handleMouseMove(scenePos);
+        }
     });
     
     connect(m_graphicsView, &ImageGraphicsView::shiftReleased, this, [this]() {
         m_measurementTool->setShiftPressed(false);
+        m_angleMeasurementTool->setShiftPressed(false);
         if (m_measurementTool->isMeasureMode()) {
             QPoint cursorPos = m_graphicsView->mapFromGlobal(QCursor::pos());
             QPointF scenePos = m_graphicsView->mapToScene(cursorPos);
             m_measurementTool->handleMouseMove(scenePos);
+        }
+        if (m_angleMeasurementTool->isAngleMode()) {
+            QPoint cursorPos = m_graphicsView->mapFromGlobal(QCursor::pos());
+            QPointF scenePos = m_graphicsView->mapToScene(cursorPos);
+            m_angleMeasurementTool->handleMouseMove(scenePos);
         }
     });
     
@@ -323,15 +348,18 @@ void MainWindow::setupConnections()
     connect(m_graphicsView, &ImageGraphicsView::scaleChanged, this, [this]() {
         m_imageViewer->updateScaleInfo();
         m_measurementTool->updateMeasurementScale();
+        m_angleMeasurementTool->updateMeasurementScale();
     });
     
     connect(m_imageViewer, &ImageViewer::imageLoaded, this, [this](const QString &fileName) {
         m_measurementTool->clearMeasurement();
+        m_angleMeasurementTool->clearMeasurement();
         setWindowTitle(tr("图片查看器 - %1").arg(fileName));
     });
     
     connect(m_imageViewer, &ImageViewer::scaleChanged, this, [this]() {
         m_measurementTool->clearMeasurement();
+        m_angleMeasurementTool->clearMeasurement();
     });
     
     connect(m_imageViewer, &ImageViewer::imageLoadingStarted, this, [this]() {
@@ -444,7 +472,20 @@ void MainWindow::flipVertical()
 
 void MainWindow::toggleMeasureMode()
 {
+    if (m_measureAction->isChecked()) {
+        m_angleAction->setChecked(false);
+        m_angleMeasurementTool->toggleAngleMode(false);
+    }
     m_measurementTool->toggleMeasureMode(m_measureAction->isChecked());
+}
+
+void MainWindow::toggleAngleMode()
+{
+    if (m_angleAction->isChecked()) {
+        m_measureAction->setChecked(false);
+        m_measurementTool->toggleMeasureMode(false);
+    }
+    m_angleMeasurementTool->toggleAngleMode(m_angleAction->isChecked());
 }
 
 void MainWindow::nextImage()
