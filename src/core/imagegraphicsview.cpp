@@ -54,33 +54,29 @@ void ImageGraphicsView::enterEvent(QEnterEvent *event)
 
 void ImageGraphicsView::wheelEvent(QWheelEvent *event)
 {
-    if (event->modifiers() & Qt::ControlModifier) {
-        qreal scaleFactor = 1.15;
-        if (event->angleDelta().y() < 0) {
-            scaleFactor = 1.0 / scaleFactor;
-        }
-        
-        qreal currentScale = transform().m11() * 100;
-        qreal newScale = currentScale * scaleFactor;
-        
-        if ((scaleFactor > 1 && currentScale < 3200) || (scaleFactor < 1 && currentScale > 1)) {
-            qreal actualScaleFactor = scaleFactor;
-            if (scaleFactor > 1 && currentScale < 3200) {
-                actualScaleFactor = 3200 / currentScale;
-                actualScaleFactor = qMin(actualScaleFactor, 1.15);
-            } else if (scaleFactor < 1 && currentScale > 1) {
-                actualScaleFactor = 1.0 / 1.15;
-                if (currentScale * actualScaleFactor < 1) {
-                    actualScaleFactor = 1.0 / currentScale;
-                }
+    qreal scaleFactor = 1.15;
+    if (event->angleDelta().y() < 0) {
+        scaleFactor = 1.0 / scaleFactor;
+    }
+    
+    qreal currentScale = transform().m11() * 100;
+    qreal newScale = currentScale * scaleFactor;
+    
+    if ((scaleFactor > 1 && currentScale < 3200) || (scaleFactor < 1 && currentScale > 1)) {
+        qreal actualScaleFactor = scaleFactor;
+        if (scaleFactor > 1 && currentScale < 3200) {
+            actualScaleFactor = 3200 / currentScale;
+            actualScaleFactor = qMin(actualScaleFactor, 1.15);
+        } else if (scaleFactor < 1 && currentScale > 1) {
+            actualScaleFactor = 1.0 / 1.15;
+            if (currentScale * actualScaleFactor < 1) {
+                actualScaleFactor = 1.0 / currentScale;
             }
-            
-            scale(actualScaleFactor, actualScaleFactor);
-            emit scaleChanged();
-            event->accept();
         }
-    } else {
-        QGraphicsView::wheelEvent(event);
+        
+        scale(actualScaleFactor, actualScaleFactor);
+        emit scaleChanged();
+        event->accept();
     }
 }
 
