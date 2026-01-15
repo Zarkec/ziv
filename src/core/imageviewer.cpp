@@ -446,22 +446,25 @@ void ImageViewer::updateScaleInfo()
         return;
     }
     
-    QRectF viewRect = m_view->mapFromScene(m_pixmapItem->sceneBoundingRect()).boundingRect();
     QSize originalSize = m_originalPixmap.size();
+    if (originalSize.width() <= 0 || originalSize.height() <= 0) {
+        if (m_scaleLabel) {
+            m_scaleLabel->setText("缩放:");
+        }
+        return;
+    }
     
-    qreal scaleX = viewRect.width() / originalSize.width();
-    qreal scaleY = viewRect.height() / originalSize.height();
-    qreal scale = qMin(scaleX, scaleY) * 100;
+    qreal currentScale = m_view->transform().m11() * 100;
     
     if (m_scaleLabel) {
         m_scaleLabel->setText(tr("缩放:"));
     }
     
     if (m_zoomSlider) {
-        m_zoomSlider->setValue(qRound(scale));
+        m_zoomSlider->setValue(qRound(qBound(qreal(1), currentScale, qreal(3200))));
     }
     if (m_zoomSpinBox) {
-        m_zoomSpinBox->setValue(qRound(scale));
+        m_zoomSpinBox->setValue(qRound(qBound(qreal(1), currentScale, qreal(3200))));
     }
 }
 
