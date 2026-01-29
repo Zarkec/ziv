@@ -25,11 +25,20 @@ signals:
 protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
     void leaveEvent(QEvent *event) override;
     void enterEvent(QEnterEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
+
+private:
+    QPoint m_lastMousePos;
+    bool m_mouseInView;
+    bool m_rightButtonDragging;
+    QPoint m_dragStartPos;
+    bool m_isCrosshairMode;
 };
 
 #endif // IMAGEGRAPHICSVIEW_H

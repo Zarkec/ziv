@@ -5,9 +5,13 @@
 #include <QKeyEvent>
 #include <QEnterEvent>
 #include <QPainter>
+#include <QScrollBar>
 
 ImageGraphicsView::ImageGraphicsView(QWidget *parent)
     : QGraphicsView(parent)
+    , m_mouseInView(false)
+    , m_rightButtonDragging(false)
+    , m_isCrosshairMode(false)
 {
     setRenderHint(QPainter::Antialiasing);
     setRenderHint(QPainter::SmoothPixmapTransform);
@@ -17,10 +21,21 @@ ImageGraphicsView::ImageGraphicsView(QWidget *parent)
     setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    setMouseTracking(true);
 }
 
 void ImageGraphicsView::mousePressEvent(QMouseEvent *event)
 {
+    // 在 CrossCursor 模式下（测距/测角模式），右键用于拖动
+    if (event->button() == Qt::RightButton && cursor().shape() == Qt::CrossCursor) {
+        m_rightButtonDragging = true;
+        m_isCrosshairMode = true;
+        m_dragStartPos = event->pos();
+        setCursor(Qt::ClosedHandCursor);
+        event->accept();
+        return;
+    }
+    
     QGraphicsView::mousePressEvent(event);
     
     QPointF viewPos = event->pos();
@@ -30,7 +45,24 @@ void ImageGraphicsView::mousePressEvent(QMouseEvent *event)
 
 void ImageGraphicsView::mouseMoveEvent(QMouseEvent *event)
 {
+    m_lastMousePos = event->pos();
+    
+    // 处理右键拖动
+    if (m_rightButtonDragging) {
+        QPoint delta = event->pos() - m_dragStartPos;
+        horizontalScrollBar()->setValue(horizontalScrollBar()->value() - delta.x());
+        verticalScrollBar()->setValue(verticalScrollBar()->value() - delta.y());
+        m_dragStartPos = event->pos();
+        viewport()->update();
+        event->accept();
+        return;
+    }
+    
     QGraphicsView::mouseMoveEvent(event);
+    
+    if (cursor().shape() == Qt::CrossCursor) {
+        viewport()->update();
+    }
     
     QPointF viewPos = event->pos();
     QPointF scenePos = mapToScene(viewPos.toPoint());
@@ -40,12 +72,31 @@ void ImageGraphicsView::mouseMoveEvent(QMouseEvent *event)
 void ImageGraphicsView::leaveEvent(QEvent *event)
 {
     QGraphicsView::leaveEvent(event);
+    m_mouseInView = false;
+    viewport()->update();
     emit mouseLeft();
+}
+
+void ImageGraphicsView::mouseReleaseEvent(QMouseEvent *event)
+{
+    // 处理右键拖动结束
+    if (event->button() == Qt::RightButton && m_rightButtonDragging) {
+        m_rightButtonDragging = false;
+        setCursor(Qt::CrossCursor);
+        m_isCrosshairMode = false;
+        event->accept();
+        return;
+    }
+    
+    QGraphicsView::mouseReleaseEvent(event);
 }
 
 void ImageGraphicsView::enterEvent(QEnterEvent *event)
 {
     QGraphicsView::enterEvent(event);
+    
+    m_mouseInView = true;
+    m_lastMousePos = event->position().toPoint();
     
     QPointF viewPos = event->position();
     QPointF scenePos = mapToScene(viewPos.toPoint());
@@ -95,5 +146,28 @@ void ImageGraphicsView::keyReleaseEvent(QKeyEvent *event)
     
     if (event->key() == Qt::Key_Shift) {
         emit shiftReleased();
+    }
+}
+
+void ImageGraphicsView::paintEvent(QPaintEvent *event)
+{
+    QGraphicsView::paintEvent(event);
+    
+    // 当光标是 CrossCursor 或者正在右键拖动时绘制十字准星
+    if ((cursor().shape() == Qt::CrossCursor || m_isCrosshairMode) && m_mouseInView) {
+        QPainter painter(viewport());
+        painter.setRenderHint(QPainter::Antialiasing);
+        
+        // 设置十字准星的颜色和线宽
+        QPen pen(QColor(0, 255, 0, 200)); // 半透明绿色
+        pen.setWidth(2);
+        pen.setStyle(Qt::DashLine);
+        painter.setPen(pen);
+        
+        // 绘制水平线（横跨整个视口）
+        painter.drawLine(0, m_lastMousePos.y(), viewport()->width(), m_lastMousePos.y());
+        
+        // 绘制垂直线（横跨整个视口）
+        painter.drawLine(m_lastMousePos.x(), 0, m_lastMousePos.x(), viewport()->height());
     }
 }
