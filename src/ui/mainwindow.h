@@ -15,6 +15,7 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
+#include <QPushButton>
 
 class ImageViewer;
 class MeasurementTool;
@@ -48,6 +49,12 @@ private slots:
     void nextImage();
     void previousImage();
     void onPaletteChanged();
+    void toggleOverlayMode();
+    void loadSecondImage();
+    void clearSecondImage();
+    void onAlpha1Changed(int value);
+    void onAlpha2Changed(int value);
+    void exportOverlayImage();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -60,6 +67,7 @@ private:
     void setupConnections();
     void updateThemeIcons();
     bool isSystemDarkTheme();
+    void createOverlayControlPanel();
 
     ImageGraphicsView *m_graphicsView;
     QGraphicsScene *m_graphicsScene;
@@ -72,16 +80,32 @@ private:
     QAction *m_fitToWindowAction;
     QAction *m_measureAction;
     QAction *m_angleAction;
-    
+
     ImageViewer *m_imageViewer;
     MeasurementTool *m_measurementTool;
     AngleMeasurementTool *m_angleMeasurementTool;
-    
+
     QSlider *m_zoomSlider;
     QSpinBox *m_zoomSpinBox;
-    
+
     bool m_isDarkTheme;
     QMap<QString, QAction*> m_iconActions;
+
+    // Overlay mode UI components
+    QAction *m_overlayModeAction;
+    QWidget *m_overlayControlPanel;
+
+    QLabel *m_image2PathLabel;
+    QPushButton *m_loadImage2Button;
+    QPushButton *m_clearImage2Button;
+
+    QLabel *m_alpha1Label;
+    QSlider *m_alpha1Slider;
+    QSpinBox *m_alpha1SpinBox;
+
+    QLabel *m_alpha2Label;
+    QSlider *m_alpha2Slider;
+    QSpinBox *m_alpha2SpinBox;
 };
 
 #endif // MAINWINDOW_H

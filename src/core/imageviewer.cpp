@@ -24,7 +24,13 @@ ImageViewer::ImageViewer(ImageGraphicsView *view, QGraphicsScene *scene, QObject
     , m_fileSize(0)
     , m_currentImageIndex(-1)
     , m_settings(new QSettings("ZivImageViewer", "ImageViewer", this))
+    , m_isOverlayMode(false)
+    , m_alpha1(0.5)
+    , m_alpha2(0.5)
+    , m_overlayUpdateTimer(new QTimer(this))
 {
+    m_overlayUpdateTimer->setSingleShot(true);
+    connect(m_overlayUpdateTimer, &QTimer::timeout, this, &ImageViewer::updateOverlay);
 }
 
 void ImageViewer::setCoordinateLabel(QLabel *label)
@@ -213,16 +219,20 @@ void ImageViewer::rotateLeft()
     if (!m_view->isEnabled() || m_cvImage.empty()) {
         return;
     }
-    
+
     cv::Mat rotated;
     cv::transpose(m_cvImage, rotated);
     cv::flip(rotated, rotated, 0);
     m_cvImage = rotated;
-    
-    updatePixmapFromMat();
-    m_pixmapItem->setPixmap(m_originalPixmap);
-    m_scene->setSceneRect(m_originalPixmap.rect());
-    
+
+    if (m_isOverlayMode && !m_cvImage2.empty()) {
+        updateOverlay();
+    } else {
+        updatePixmapFromMat();
+        m_pixmapItem->setPixmap(m_originalPixmap);
+        m_scene->setSceneRect(m_originalPixmap.rect());
+    }
+
     emit scaleChanged();
 }
 
@@ -231,16 +241,20 @@ void ImageViewer::rotateRight()
     if (!m_view->isEnabled() || m_cvImage.empty()) {
         return;
     }
-    
+
     cv::Mat rotated;
     cv::transpose(m_cvImage, rotated);
     cv::flip(rotated, rotated, 1);
     m_cvImage = rotated;
-    
-    updatePixmapFromMat();
-    m_pixmapItem->setPixmap(m_originalPixmap);
-    m_scene->setSceneRect(m_originalPixmap.rect());
-    
+
+    if (m_isOverlayMode && !m_cvImage2.empty()) {
+        updateOverlay();
+    } else {
+        updatePixmapFromMat();
+        m_pixmapItem->setPixmap(m_originalPixmap);
+        m_scene->setSceneRect(m_originalPixmap.rect());
+    }
+
     emit scaleChanged();
 }
 
@@ -249,15 +263,19 @@ void ImageViewer::rotate180()
     if (!m_view->isEnabled() || m_cvImage.empty()) {
         return;
     }
-    
+
     cv::Mat rotated;
     cv::flip(m_cvImage, rotated, -1);
     m_cvImage = rotated;
-    
-    updatePixmapFromMat();
-    m_pixmapItem->setPixmap(m_originalPixmap);
-    m_scene->setSceneRect(m_originalPixmap.rect());
-    
+
+    if (m_isOverlayMode && !m_cvImage2.empty()) {
+        updateOverlay();
+    } else {
+        updatePixmapFromMat();
+        m_pixmapItem->setPixmap(m_originalPixmap);
+        m_scene->setSceneRect(m_originalPixmap.rect());
+    }
+
     emit scaleChanged();
 }
 
@@ -266,15 +284,19 @@ void ImageViewer::flipHorizontal()
     if (!m_view->isEnabled() || m_cvImage.empty()) {
         return;
     }
-    
+
     cv::Mat flipped;
     cv::flip(m_cvImage, flipped, 1);
     m_cvImage = flipped;
-    
-    updatePixmapFromMat();
-    m_pixmapItem->setPixmap(m_originalPixmap);
-    m_scene->setSceneRect(m_originalPixmap.rect());
-    
+
+    if (m_isOverlayMode && !m_cvImage2.empty()) {
+        updateOverlay();
+    } else {
+        updatePixmapFromMat();
+        m_pixmapItem->setPixmap(m_originalPixmap);
+        m_scene->setSceneRect(m_originalPixmap.rect());
+    }
+
     emit scaleChanged();
 }
 
@@ -283,15 +305,19 @@ void ImageViewer::flipVertical()
     if (!m_view->isEnabled() || m_cvImage.empty()) {
         return;
     }
-    
+
     cv::Mat flipped;
     cv::flip(m_cvImage, flipped, 0);
     m_cvImage = flipped;
-    
-    updatePixmapFromMat();
-    m_pixmapItem->setPixmap(m_originalPixmap);
-    m_scene->setSceneRect(m_originalPixmap.rect());
-    
+
+    if (m_isOverlayMode && !m_cvImage2.empty()) {
+        updateOverlay();
+    } else {
+        updatePixmapFromMat();
+        m_pixmapItem->setPixmap(m_originalPixmap);
+        m_scene->setSceneRect(m_originalPixmap.rect());
+    }
+
     emit scaleChanged();
 }
 
@@ -605,13 +631,305 @@ void ImageViewer::previousImage()
     if (m_imageList.isEmpty()) {
         return;
     }
-    
+
     saveCurrentPosition();
-    
+
     m_currentImageIndex--;
     if (m_currentImageIndex < 0) {
         m_currentImageIndex = m_imageList.size() - 1;
     }
-    
+
     openImage(m_imageList[m_currentImageIndex]);
+}
+
+// Overlay mode implementation
+
+void ImageViewer::enableOverlayMode(bool enable)
+{
+    m_isOverlayMode = enable;
+    emit overlayModeChanged(enable);
+
+    if (enable && !m_cvImage2.empty()) {
+        updateOverlay();
+    } else if (!enable && !m_cvImage.empty()) {
+        // Restore original image 1
+        updatePixmapFromMat();
+        if (m_pixmapItem) {
+            m_pixmapItem->setPixmap(m_originalPixmap);
+            m_scene->setSceneRect(m_originalPixmap.rect());
+        }
+    }
+}
+
+bool ImageViewer::isOverlayMode() const
+{
+    return m_isOverlayMode;
+}
+
+bool ImageViewer::loadSecondImage(const QString &fileName)
+{
+    if (fileName.isEmpty()) {
+        return false;
+    }
+
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(nullptr, tr("错误"), tr("无法打开图片文件: %1").arg(fileName));
+        return false;
+    }
+
+    QByteArray fileData = file.readAll();
+    file.close();
+
+    cv::Mat matData(1, fileData.size(), CV_8U, (void*)fileData.data());
+
+    cv::Mat cvImage = cv::imdecode(matData, cv::IMREAD_UNCHANGED);
+    if (cvImage.empty()) {
+        QMessageBox::warning(nullptr, tr("错误"), tr("无法解码图片文件: %1").arg(fileName));
+        return false;
+    }
+
+    m_cvImage2 = cvImage;
+    m_currentImage2Path = fileName;
+
+    emit secondImageLoaded(fileName);
+
+    if (m_isOverlayMode) {
+        updateOverlay();
+    }
+
+    return true;
+}
+
+void ImageViewer::clearSecondImage()
+{
+    m_cvImage2.release();
+    m_currentImage2Path.clear();
+
+    emit secondImageCleared();
+
+    if (m_isOverlayMode && !m_cvImage.empty()) {
+        // Restore original image 1
+        updatePixmapFromMat();
+        if (m_pixmapItem) {
+            m_pixmapItem->setPixmap(m_originalPixmap);
+            m_scene->setSceneRect(m_originalPixmap.rect());
+        }
+    }
+}
+
+void ImageViewer::setAlpha1(double alpha)
+{
+    m_alpha1 = qBound(0.0, alpha, 1.0);
+
+    if (m_isOverlayMode && !m_cvImage.empty() && !m_cvImage2.empty()) {
+        m_overlayUpdateTimer->start(100);
+    }
+}
+
+void ImageViewer::setAlpha2(double alpha)
+{
+    m_alpha2 = qBound(0.0, alpha, 1.0);
+
+    if (m_isOverlayMode && !m_cvImage.empty() && !m_cvImage2.empty()) {
+        m_overlayUpdateTimer->start(100);
+    }
+}
+
+double ImageViewer::getAlpha1() const
+{
+    return m_alpha1;
+}
+
+double ImageViewer::getAlpha2() const
+{
+    return m_alpha2;
+}
+
+bool ImageViewer::exportOverlayImage(const QString &fileName)
+{
+    if (!m_isOverlayMode || m_cvImage.empty() || m_cvImage2.empty() || fileName.isEmpty()) {
+        return false;
+    }
+
+    cv::Mat overlayResult = computeOverlay();
+    if (overlayResult.empty()) {
+        return false;
+    }
+
+    QFileInfo fileInfo(fileName);
+    QString suffix = fileInfo.suffix().toLower();
+
+    std::string ext;
+    if (suffix == "png") {
+        ext = ".png";
+    } else if (suffix == "jpg" || suffix == "jpeg") {
+        ext = ".jpg";
+    } else if (suffix == "bmp") {
+        ext = ".bmp";
+    } else if (suffix == "tiff" || suffix == "tif") {
+        ext = ".tiff";
+    } else if (suffix == "webp") {
+        ext = ".webp";
+    } else {
+        return false;
+    }
+
+    std::vector<uchar> buffer;
+    cv::imencode(ext, overlayResult, buffer);
+
+    QFile file(fileName);
+    if (!file.open(QIODevice::WriteOnly)) {
+        return false;
+    }
+
+    file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+    file.close();
+
+    return true;
+}
+
+QFuture<bool> ImageViewer::exportOverlayImageAsync(const QString &fileName)
+{
+    if (!m_isOverlayMode || m_cvImage.empty() || m_cvImage2.empty() || fileName.isEmpty()) {
+        return QtConcurrent::run([]() { return false; });
+    }
+
+    QFileInfo fileInfo(fileName);
+    QString suffix = fileInfo.suffix().toLower();
+
+    std::string ext;
+    if (suffix == "png") {
+        ext = ".png";
+    } else if (suffix == "jpg" || suffix == "jpeg") {
+        ext = ".jpg";
+    } else if (suffix == "bmp") {
+        ext = ".bmp";
+    } else if (suffix == "tiff" || suffix == "tif") {
+        ext = ".tiff";
+    } else if (suffix == "webp") {
+        ext = ".webp";
+    } else {
+        return QtConcurrent::run([]() { return false; });
+    }
+
+    cv::Mat overlayResult = computeOverlay();
+
+    return QtConcurrent::run([overlayResult, fileName, ext]() {
+        std::vector<uchar> buffer;
+        cv::imencode(ext, overlayResult, buffer);
+
+        QFile file(fileName);
+        if (!file.open(QIODevice::WriteOnly)) {
+            return false;
+        }
+
+        file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+        file.close();
+
+        return true;
+    });
+}
+
+void ImageViewer::alignImages(const cv::Mat &img1, const cv::Mat &img2,
+                               cv::Mat &aligned1, cv::Mat &aligned2)
+{
+    // Unify number of channels
+    cv::Mat img1_unified, img2_unified;
+
+    // Convert to RGB if needed
+    if (img1.channels() == 1) {
+        cv::cvtColor(img1, img1_unified, cv::COLOR_GRAY2BGR);
+    } else if (img1.channels() == 4) {
+        cv::cvtColor(img1, img1_unified, cv::COLOR_BGRA2BGR);
+    } else {
+        img1_unified = img1.clone();
+    }
+
+    if (img2.channels() == 1) {
+        cv::cvtColor(img2, img2_unified, cv::COLOR_GRAY2BGR);
+    } else if (img2.channels() == 4) {
+        cv::cvtColor(img2, img2_unified, cv::COLOR_BGRA2BGR);
+    } else {
+        img2_unified = img2.clone();
+    }
+
+    // Get maximum dimensions
+    int maxWidth = std::max(img1_unified.cols, img2_unified.cols);
+    int maxHeight = std::max(img1_unified.rows, img2_unified.rows);
+
+    // Create canvases with maximum size
+    aligned1 = cv::Mat::zeros(maxHeight, maxWidth, CV_8UC3);
+    aligned2 = cv::Mat::zeros(maxHeight, maxWidth, CV_8UC3);
+
+    // Center align images
+    int x1 = (maxWidth - img1_unified.cols) / 2;
+    int y1 = (maxHeight - img1_unified.rows) / 2;
+    img1_unified.copyTo(aligned1(cv::Rect(x1, y1, img1_unified.cols, img1_unified.rows)));
+
+    int x2 = (maxWidth - img2_unified.cols) / 2;
+    int y2 = (maxHeight - img2_unified.rows) / 2;
+    img2_unified.copyTo(aligned2(cv::Rect(x2, y2, img2_unified.cols, img2_unified.rows)));
+}
+
+cv::Mat ImageViewer::computeOverlay()
+{
+    if (m_cvImage.empty() || m_cvImage2.empty()) {
+        return cv::Mat();
+    }
+
+    cv::Mat aligned1, aligned2;
+    alignImages(m_cvImage, m_cvImage2, aligned1, aligned2);
+
+    cv::Mat result;
+    cv::addWeighted(aligned1, m_alpha1, aligned2, m_alpha2, 0, result);
+
+    return result;
+}
+
+void ImageViewer::updateOverlay()
+{
+    if (!m_isOverlayMode || m_cvImage.empty() || m_cvImage2.empty()) {
+        return;
+    }
+
+    m_overlayResult = computeOverlay();
+
+    if (m_overlayResult.empty()) {
+        return;
+    }
+
+    // Convert overlay result to QPixmap
+    cv::Mat cvImageRGB;
+    if (m_overlayResult.channels() == 3) {
+        cv::cvtColor(m_overlayResult, cvImageRGB, cv::COLOR_BGR2RGB);
+    } else if (m_overlayResult.channels() == 4) {
+        cv::cvtColor(m_overlayResult, cvImageRGB, cv::COLOR_BGRA2RGBA);
+    } else {
+        cvImageRGB = m_overlayResult.clone();
+    }
+
+    QImage::Format format;
+    if (cvImageRGB.channels() == 1) {
+        format = QImage::Format_Grayscale8;
+    } else if (cvImageRGB.channels() == 4) {
+        format = QImage::Format_RGBA8888;
+    } else {
+        format = QImage::Format_RGB888;
+    }
+
+    QImage qImage(
+        cvImageRGB.data,
+        cvImageRGB.cols,
+        cvImageRGB.rows,
+        static_cast<int>(cvImageRGB.step),
+        format
+    );
+
+    QPixmap overlayPixmap = QPixmap::fromImage(qImage.copy());
+
+    if (m_pixmapItem) {
+        m_pixmapItem->setPixmap(overlayPixmap);
+        m_scene->setSceneRect(overlayPixmap.rect());
+    }
 }
