@@ -39,17 +39,28 @@ MainWindow::MainWindow(QWidget *parent)
     , m_zoomSlider(nullptr)
     , m_zoomSpinBox(nullptr)
     , m_isDarkTheme(false)
+    , m_overlayModeAction(nullptr)
+    , m_overlayControlPanel(nullptr)
+    , m_image2PathLabel(nullptr)
+    , m_loadImage2Button(nullptr)
+    , m_clearImage2Button(nullptr)
+    , m_alpha1Label(nullptr)
+    , m_alpha1Slider(nullptr)
+    , m_alpha1SpinBox(nullptr)
+    , m_alpha2Label(nullptr)
+    , m_alpha2Slider(nullptr)
+    , m_alpha2SpinBox(nullptr)
 {
     m_isDarkTheme = isSystemDarkTheme();
-    
+
     setAcceptDrops(true);
-    
+
     setupUI();
     setupActions();
     setupConnections();
-    
+
     connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, &MainWindow::onPaletteChanged);
-    
+
     m_graphicsView->setEnabled(false);
 }
 
@@ -133,6 +144,8 @@ void MainWindow::setupUI()
     
     m_measurementTool = new MeasurementTool(m_graphicsScene, m_graphicsView, this);
     m_angleMeasurementTool = new AngleMeasurementTool(m_graphicsScene, m_graphicsView, this);
+
+    createOverlayControlPanel();
 }
 
 void MainWindow::setupActions()
@@ -218,7 +231,14 @@ void MainWindow::setupActions()
     nextImageAction->setIcon(QIcon(":/icons/light/next.png"));
     nextImageAction->setShortcut(Qt::Key_Right);
     m_iconActions["next"] = nextImageAction;
-    
+
+    m_overlayModeAction = new QAction("叠加模式", this);
+    m_overlayModeAction->setCheckable(true);
+    m_overlayModeAction->setShortcut(tr("Ctrl+Y"));
+
+    QAction *exportOverlayAction = new QAction("导出叠加结果", this);
+    exportOverlayAction->setShortcut(tr("Ctrl+Shift+S"));
+
     viewMenu->addAction(zoomInAction);
     viewMenu->addAction(zoomOutAction);
     viewMenu->addSeparator();
@@ -234,9 +254,13 @@ void MainWindow::setupActions()
     viewMenu->addSeparator();
     viewMenu->addAction(m_measureAction);
     viewMenu->addAction(m_angleAction);
+    viewMenu->addAction(m_overlayModeAction);
     viewMenu->addSeparator();
     viewMenu->addAction(m_fitToWindowAction);
     viewMenu->addAction(originalSizeAction);
+
+    fileMenu->addSeparator();
+    fileMenu->addAction(exportOverlayAction);
     
     QToolBar *toolBar = new QToolBar("查看工具栏", this);
     addToolBar(Qt::LeftToolBarArea, toolBar);
@@ -279,7 +303,9 @@ void MainWindow::setupActions()
     connect(m_angleAction, &QAction::triggered, this, &MainWindow::toggleAngleMode);
     connect(m_fitToWindowAction, &QAction::triggered, this, &MainWindow::fitToWindow);
     connect(originalSizeAction, &QAction::triggered, this, &MainWindow::originalSize);
-    
+    connect(m_overlayModeAction, &QAction::triggered, this, &MainWindow::toggleOverlayMode);
+    connect(exportOverlayAction, &QAction::triggered, this, &MainWindow::exportOverlayImage);
+
     updateThemeIcons();
 }
 
@@ -379,6 +405,26 @@ void MainWindow::setupConnections()
     connect(m_imageViewer, &ImageViewer::imageLoadingFinished, this, [this]() {
         m_loadingLabel->setText("");
     });
+
+    // Overlay mode connections
+    connect(m_imageViewer, &ImageViewer::overlayModeChanged, m_overlayControlPanel, &QWidget::setVisible);
+    connect(m_imageViewer, &ImageViewer::secondImageLoaded, this, [this](const QString &fileName) {
+        QFileInfo fi(fileName);
+        m_image2PathLabel->setText(fi.fileName());
+        m_clearImage2Button->setEnabled(true);
+    });
+    connect(m_imageViewer, &ImageViewer::secondImageCleared, this, [this]() {
+        m_image2PathLabel->setText("未加载");
+        m_clearImage2Button->setEnabled(false);
+    });
+
+    connect(m_loadImage2Button, &QPushButton::clicked, this, &MainWindow::loadSecondImage);
+    connect(m_clearImage2Button, &QPushButton::clicked, this, &MainWindow::clearSecondImage);
+
+    connect(m_alpha1Slider, &QSlider::valueChanged, this, &MainWindow::onAlpha1Changed);
+    connect(m_alpha2Slider, &QSlider::valueChanged, this, &MainWindow::onAlpha2Changed);
+    connect(m_alpha1SpinBox, QOverload<int>::of(&QSpinBox::valueChanged), m_alpha1Slider, &QSlider::setValue);
+    connect(m_alpha2SpinBox, QOverload<int>::of(&QSpinBox::valueChanged), m_alpha2Slider, &QSlider::setValue);
 }
 
 void MainWindow::openImage()
@@ -545,7 +591,7 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *event)
 void MainWindow::dropEvent(QDropEvent *event)
 {
     const QMimeData *mimeData = event->mimeData();
-    
+
     if (mimeData->hasUrls()) {
         QList<QUrl> urls = mimeData->urls();
         if (!urls.isEmpty()) {
@@ -553,6 +599,173 @@ void MainWindow::dropEvent(QDropEvent *event)
             openFile(fileName);
         }
     }
-    
+
     event->acceptProposedAction();
+}
+
+void MainWindow::createOverlayControlPanel()
+{
+    m_overlayControlPanel = new QWidget(this);
+
+    QHBoxLayout *panelLayout = new QHBoxLayout(m_overlayControlPanel);
+    panelLayout->setContentsMargins(10, 5, 10, 5);
+
+    // Image 2 loading section
+    QLabel *image2Label = new QLabel("图片2:", this);
+    m_image2PathLabel = new QLabel("未加载", this);
+    m_image2PathLabel->setMinimumWidth(150);
+    m_loadImage2Button = new QPushButton("加载", this);
+    m_clearImage2Button = new QPushButton("清除", this);
+    m_clearImage2Button->setEnabled(false);
+
+    panelLayout->addWidget(image2Label);
+    panelLayout->addWidget(m_image2PathLabel);
+    panelLayout->addWidget(m_loadImage2Button);
+    panelLayout->addWidget(m_clearImage2Button);
+
+    panelLayout->addSpacing(20);
+
+    // Alpha 1 control section
+    m_alpha1Label = new QLabel("图片1透明度:", this);
+    m_alpha1Slider = new QSlider(Qt::Horizontal, this);
+    m_alpha1Slider->setMinimum(0);
+    m_alpha1Slider->setMaximum(100);
+    m_alpha1Slider->setValue(50);
+    m_alpha1Slider->setMinimumWidth(150);
+    m_alpha1SpinBox = new QSpinBox(this);
+    m_alpha1SpinBox->setMinimum(0);
+    m_alpha1SpinBox->setMaximum(100);
+    m_alpha1SpinBox->setValue(50);
+    m_alpha1SpinBox->setSuffix("%");
+
+    panelLayout->addWidget(m_alpha1Label);
+    panelLayout->addWidget(m_alpha1Slider);
+    panelLayout->addWidget(m_alpha1SpinBox);
+
+    panelLayout->addSpacing(20);
+
+    // Alpha 2 control section
+    m_alpha2Label = new QLabel("图片2透明度:", this);
+    m_alpha2Slider = new QSlider(Qt::Horizontal, this);
+    m_alpha2Slider->setMinimum(0);
+    m_alpha2Slider->setMaximum(100);
+    m_alpha2Slider->setValue(50);
+    m_alpha2Slider->setMinimumWidth(150);
+    m_alpha2SpinBox = new QSpinBox(this);
+    m_alpha2SpinBox->setMinimum(0);
+    m_alpha2SpinBox->setMaximum(100);
+    m_alpha2SpinBox->setValue(50);
+    m_alpha2SpinBox->setSuffix("%");
+
+    panelLayout->addWidget(m_alpha2Label);
+    panelLayout->addWidget(m_alpha2Slider);
+    panelLayout->addWidget(m_alpha2SpinBox);
+
+    panelLayout->addStretch();
+
+    // Add panel to main layout (above graphics view)
+    QWidget *centralWidget = this->centralWidget();
+    QVBoxLayout *mainLayout = qobject_cast<QVBoxLayout*>(centralWidget->layout());
+    if (mainLayout) {
+        mainLayout->insertWidget(0, m_overlayControlPanel);
+    }
+
+    m_overlayControlPanel->setVisible(false);
+}
+
+void MainWindow::toggleOverlayMode()
+{
+    if (!m_imageViewer->isEnabled()) {
+        m_overlayModeAction->setChecked(false);
+        QMessageBox::warning(this, tr("警告"), tr("请先打开一张图片"));
+        return;
+    }
+
+    bool enabled = m_overlayModeAction->isChecked();
+    m_imageViewer->enableOverlayMode(enabled);
+
+    if (enabled) {
+        // Disable measurement tools when overlay mode is active
+        m_measureAction->setChecked(false);
+        m_measurementTool->toggleMeasureMode(false);
+        m_angleAction->setChecked(false);
+        m_angleMeasurementTool->toggleAngleMode(false);
+    }
+}
+
+void MainWindow::loadSecondImage()
+{
+    QString fileName = QFileDialog::getOpenFileName(
+        this,
+        tr("打开第二张图片"),
+        QString(),
+        tr("图片文件 (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp);;所有文件 (*.*)")
+    );
+
+    if (!fileName.isEmpty()) {
+        m_imageViewer->loadSecondImage(fileName);
+    }
+}
+
+void MainWindow::clearSecondImage()
+{
+    m_imageViewer->clearSecondImage();
+}
+
+void MainWindow::onAlpha1Changed(int value)
+{
+    m_alpha1SpinBox->blockSignals(true);
+    m_alpha1SpinBox->setValue(value);
+    m_alpha1SpinBox->blockSignals(false);
+
+    m_imageViewer->setAlpha1(value / 100.0);
+}
+
+void MainWindow::onAlpha2Changed(int value)
+{
+    m_alpha2SpinBox->blockSignals(true);
+    m_alpha2SpinBox->setValue(value);
+    m_alpha2SpinBox->blockSignals(false);
+
+    m_imageViewer->setAlpha2(value / 100.0);
+}
+
+void MainWindow::exportOverlayImage()
+{
+    if (!m_imageViewer->isOverlayMode()) {
+        QMessageBox::warning(this, tr("警告"), tr("当前未处于叠加模式"));
+        return;
+    }
+
+    QString fileName = QFileDialog::getSaveFileName(
+        this,
+        tr("导出叠加结果"),
+        QString(),
+        tr("PNG 图片 (*.png);;JPEG 图片 (*.jpg *.jpeg);;BMP 图片 (*.bmp);;TIFF 图片 (*.tiff *.tif);;WEBP 图片 (*.webp);;所有文件 (*.*)")
+    );
+
+    if (fileName.isEmpty()) {
+        return;
+    }
+
+    QProgressDialog progressDialog(tr("正在保存叠加结果..."), tr("取消"), 0, 0, this);
+    progressDialog.setWindowModality(Qt::WindowModal);
+    progressDialog.setCancelButton(nullptr);
+    progressDialog.setRange(0, 0);
+    progressDialog.show();
+
+    QFuture<bool> future = m_imageViewer->exportOverlayImageAsync(fileName);
+
+    while (!future.isFinished()) {
+        QCoreApplication::processEvents();
+        QThread::msleep(50);
+    }
+
+    progressDialog.close();
+
+    if (future.result()) {
+        QMessageBox::information(this, tr("成功"), tr("叠加结果已成功导出到:\n%1").arg(fileName));
+    } else {
+        QMessageBox::warning(this, tr("错误"), tr("导出叠加结果失败"));
+    }
 }
