@@ -128,7 +128,7 @@ void MainWindow::setupUI()
     m_zoomSpinBox->setEnabled(false);
     statusBar()->addPermanentWidget(m_zoomSpinBox);
     
-    resize(1000, 600);
+    resize(1000, 650);
     setMinimumSize(550, 400);
     setWindowTitle("图片查看器");
     setWindowIcon(QIcon(":/icons/icon.png"));
@@ -232,12 +232,11 @@ void MainWindow::setupActions()
     nextImageAction->setShortcut(Qt::Key_Right);
     m_iconActions["next"] = nextImageAction;
 
-    m_overlayModeAction = new QAction("叠加模式", this);
+m_overlayModeAction = new QAction("叠加模式", this);
+    m_overlayModeAction->setIcon(QIcon(":/icons/light/overlay.png"));
     m_overlayModeAction->setCheckable(true);
     m_overlayModeAction->setShortcut(tr("Ctrl+Y"));
-
-    QAction *exportOverlayAction = new QAction("导出叠加结果", this);
-    exportOverlayAction->setShortcut(tr("Ctrl+Shift+S"));
+    m_iconActions["overlay"] = m_overlayModeAction;
 
     viewMenu->addAction(zoomInAction);
     viewMenu->addAction(zoomOutAction);
@@ -254,14 +253,11 @@ void MainWindow::setupActions()
     viewMenu->addSeparator();
     viewMenu->addAction(m_measureAction);
     viewMenu->addAction(m_angleAction);
-    viewMenu->addAction(m_overlayModeAction);
+viewMenu->addAction(m_overlayModeAction);
     viewMenu->addSeparator();
     viewMenu->addAction(m_fitToWindowAction);
     viewMenu->addAction(originalSizeAction);
 
-    fileMenu->addSeparator();
-    fileMenu->addAction(exportOverlayAction);
-    
     QToolBar *toolBar = new QToolBar("查看工具栏", this);
     addToolBar(Qt::LeftToolBarArea, toolBar);
     toolBar->setAllowedAreas(Qt::LeftToolBarArea | Qt::RightToolBarArea);
@@ -283,7 +279,8 @@ void MainWindow::setupActions()
     toolBar->addAction(nextImageAction);
     toolBar->addSeparator();
     toolBar->addAction(m_measureAction);
-    toolBar->addAction(m_angleAction);
+toolBar->addAction(m_angleAction);
+    toolBar->addAction(m_overlayModeAction);
     toolBar->addSeparator();
     toolBar->addAction(m_fitToWindowAction);
     toolBar->addAction(originalSizeAction);
@@ -303,8 +300,7 @@ void MainWindow::setupActions()
     connect(m_angleAction, &QAction::triggered, this, &MainWindow::toggleAngleMode);
     connect(m_fitToWindowAction, &QAction::triggered, this, &MainWindow::fitToWindow);
     connect(originalSizeAction, &QAction::triggered, this, &MainWindow::originalSize);
-    connect(m_overlayModeAction, &QAction::triggered, this, &MainWindow::toggleOverlayMode);
-    connect(exportOverlayAction, &QAction::triggered, this, &MainWindow::exportOverlayImage);
+connect(m_overlayModeAction, &QAction::triggered, this, &MainWindow::toggleOverlayMode);
 
     updateThemeIcons();
 }
@@ -728,44 +724,4 @@ void MainWindow::onAlpha2Changed(int value)
     m_alpha2SpinBox->blockSignals(false);
 
     m_imageViewer->setAlpha2(value / 100.0);
-}
-
-void MainWindow::exportOverlayImage()
-{
-    if (!m_imageViewer->isOverlayMode()) {
-        QMessageBox::warning(this, tr("警告"), tr("当前未处于叠加模式"));
-        return;
-    }
-
-    QString fileName = QFileDialog::getSaveFileName(
-        this,
-        tr("导出叠加结果"),
-        QString(),
-        tr("PNG 图片 (*.png);;JPEG 图片 (*.jpg *.jpeg);;BMP 图片 (*.bmp);;TIFF 图片 (*.tiff *.tif);;WEBP 图片 (*.webp);;所有文件 (*.*)")
-    );
-
-    if (fileName.isEmpty()) {
-        return;
-    }
-
-    QProgressDialog progressDialog(tr("正在保存叠加结果..."), tr("取消"), 0, 0, this);
-    progressDialog.setWindowModality(Qt::WindowModal);
-    progressDialog.setCancelButton(nullptr);
-    progressDialog.setRange(0, 0);
-    progressDialog.show();
-
-    QFuture<bool> future = m_imageViewer->exportOverlayImageAsync(fileName);
-
-    while (!future.isFinished()) {
-        QCoreApplication::processEvents();
-        QThread::msleep(50);
-    }
-
-    progressDialog.close();
-
-    if (future.result()) {
-        QMessageBox::information(this, tr("成功"), tr("叠加结果已成功导出到:\n%1").arg(fileName));
-    } else {
-        QMessageBox::warning(this, tr("错误"), tr("导出叠加结果失败"));
-    }
 }

@@ -52,9 +52,8 @@ private slots:
     void toggleOverlayMode();
     void loadSecondImage();
     void clearSecondImage();
-    void onAlpha1Changed(int value);
+void onAlpha1Changed(int value);
     void onAlpha2Changed(int value);
-    void exportOverlayImage();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;

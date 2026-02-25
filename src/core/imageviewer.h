@@ -67,13 +67,10 @@ public:
     bool loadSecondImage(const QString &fileName);
     void clearSecondImage();
 
-    void setAlpha1(double alpha);
+void setAlpha1(double alpha);
     void setAlpha2(double alpha);
     double getAlpha1() const;
     double getAlpha2() const;
-
-    bool exportOverlayImage(const QString &fileName);
-    QFuture<bool> exportOverlayImageAsync(const QString &fileName);
 
 signals:
     void imageLoaded(const QString &fileName);

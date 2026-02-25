@@ -323,13 +323,25 @@ void ImageViewer::flipVertical()
 
 bool ImageViewer::exportImage(const QString &fileName)
 {
-    if (!m_view->isEnabled() || m_cvImage.empty() || fileName.isEmpty()) {
+    if (!m_view->isEnabled() || fileName.isEmpty()) {
         return false;
     }
-    
+
+    cv::Mat imageToExport;
+    if (m_isOverlayMode && !m_cvImage.empty() && !m_cvImage2.empty()) {
+        imageToExport = computeOverlay();
+        if (imageToExport.empty()) {
+            return false;
+        }
+    } else if (!m_cvImage.empty()) {
+        imageToExport = m_cvImage;
+    } else {
+        return false;
+    }
+
     QFileInfo fileInfo(fileName);
     QString suffix = fileInfo.suffix().toLower();
-    
+
     std::string ext;
     if (suffix == "png") {
         ext = ".png";
@@ -344,30 +356,42 @@ bool ImageViewer::exportImage(const QString &fileName)
     } else {
         return false;
     }
-    
+
     std::vector<uchar> buffer;
-    cv::imencode(ext, m_cvImage, buffer);
-    
+    cv::imencode(ext, imageToExport, buffer);
+
     QFile file(fileName);
     if (!file.open(QIODevice::WriteOnly)) {
         return false;
     }
-    
+
     file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
     file.close();
-    
+
     return true;
 }
 
 QFuture<bool> ImageViewer::exportImageAsync(const QString &fileName)
 {
-    if (!m_view->isEnabled() || m_cvImage.empty() || fileName.isEmpty()) {
+    if (!m_view->isEnabled() || fileName.isEmpty()) {
         return QtConcurrent::run([]() { return false; });
     }
-    
+
+    cv::Mat imageToExport;
+    if (m_isOverlayMode && !m_cvImage.empty() && !m_cvImage2.empty()) {
+        imageToExport = computeOverlay();
+        if (imageToExport.empty()) {
+            return QtConcurrent::run([]() { return false; });
+        }
+    } else if (!m_cvImage.empty()) {
+        imageToExport = m_cvImage.clone();
+    } else {
+        return QtConcurrent::run([]() { return false; });
+    }
+
     QFileInfo fileInfo(fileName);
     QString suffix = fileInfo.suffix().toLower();
-    
+
     std::string ext;
     if (suffix == "png") {
         ext = ".png";
@@ -382,21 +406,19 @@ QFuture<bool> ImageViewer::exportImageAsync(const QString &fileName)
     } else {
         return QtConcurrent::run([]() { return false; });
     }
-    
-    cv::Mat image = m_cvImage.clone();
-    
-    return QtConcurrent::run([image, fileName, ext]() {
+
+    return QtConcurrent::run([imageToExport, fileName, ext]() {
         std::vector<uchar> buffer;
-        cv::imencode(ext, image, buffer);
-        
+        cv::imencode(ext, imageToExport, buffer);
+
         QFile file(fileName);
         if (!file.open(QIODevice::WriteOnly)) {
             return false;
         }
-        
+
         file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
         file.close();
-        
+
         return true;
     });
 }
@@ -744,91 +766,6 @@ double ImageViewer::getAlpha1() const
 double ImageViewer::getAlpha2() const
 {
     return m_alpha2;
-}
-
-bool ImageViewer::exportOverlayImage(const QString &fileName)
-{
-    if (!m_isOverlayMode || m_cvImage.empty() || m_cvImage2.empty() || fileName.isEmpty()) {
-        return false;
-    }
-
-    cv::Mat overlayResult = computeOverlay();
-    if (overlayResult.empty()) {
-        return false;
-    }
-
-    QFileInfo fileInfo(fileName);
-    QString suffix = fileInfo.suffix().toLower();
-
-    std::string ext;
-    if (suffix == "png") {
-        ext = ".png";
-    } else if (suffix == "jpg" || suffix == "jpeg") {
-        ext = ".jpg";
-    } else if (suffix == "bmp") {
-        ext = ".bmp";
-    } else if (suffix == "tiff" || suffix == "tif") {
-        ext = ".tiff";
-    } else if (suffix == "webp") {
-        ext = ".webp";
-    } else {
-        return false;
-    }
-
-    std::vector<uchar> buffer;
-    cv::imencode(ext, overlayResult, buffer);
-
-    QFile file(fileName);
-    if (!file.open(QIODevice::WriteOnly)) {
-        return false;
-    }
-
-    file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-    file.close();
-
-    return true;
-}
-
-QFuture<bool> ImageViewer::exportOverlayImageAsync(const QString &fileName)
-{
-    if (!m_isOverlayMode || m_cvImage.empty() || m_cvImage2.empty() || fileName.isEmpty()) {
-        return QtConcurrent::run([]() { return false; });
-    }
-
-    QFileInfo fileInfo(fileName);
-    QString suffix = fileInfo.suffix().toLower();
-
-    std::string ext;
-    if (suffix == "png") {
-        ext = ".png";
-    } else if (suffix == "jpg" || suffix == "jpeg") {
-        ext = ".jpg";
-    } else if (suffix == "bmp") {
-        ext = ".bmp";
-    } else if (suffix == "tiff" || suffix == "tif") {
-        ext = ".tiff";
-    } else if (suffix == "webp") {
-        ext = ".webp";
-    } else {
-        return QtConcurrent::run([]() { return false; });
-    }
-
-    cv::Mat overlayResult = computeOverlay();
-
-    return QtConcurrent::run([overlayResult, fileName, ext]() {
-        std::vector<uchar> buffer;
-        cv::imencode(ext, overlayResult, buffer);
-
-        QFile file(fileName);
-        if (!file.open(QIODevice::WriteOnly)) {
-            return false;
-        }
-
-        file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-        file.close();
-
-        return true;
-    });
 }
 
 void ImageViewer::alignImages(const cv::Mat &img1, const cv::Mat &img2,
