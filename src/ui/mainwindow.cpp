@@ -170,9 +170,9 @@ void MainWindow::setupUI()
     m_zoomSpinBox->setEnabled(false);
     statusBar()->addPermanentWidget(m_zoomSpinBox);
     
-    resize(1200, 650);
+    resize(1200, 700);
     setMinimumSize(750, 400);
-    setWindowTitle("图片查看器");
+    setWindowTitle("ziv");
     setWindowIcon(QIcon(":/icons/icon.png"));
     
     m_imageViewer = new ImageViewer(m_graphicsView, m_graphicsScene, this);
@@ -379,6 +379,15 @@ void MainWindow::setupConnections()
         if (m_imageViewer->pixmapItem() && m_graphicsScene->sceneRect().contains(scenePos)) {
             m_measurementTool->handleMousePress(scenePos);
             m_angleMeasurementTool->handleMousePress(scenePos);
+            m_colorPickerTool->handleMousePress(scenePos);
+        }
+    });
+
+    connect(m_colorPickerTool, &ColorPickerTool::selectionModeChanged, this, [this](bool enabled, QPointF position) {
+        if (enabled) {
+            m_graphicsView->setFixedCrosshairPosition(position);
+        } else {
+            m_graphicsView->clearFixedCrosshair();
         }
     });
     
@@ -439,7 +448,7 @@ void MainWindow::setupConnections()
         if (m_imageViewer->pixmapItem()) {
             m_colorPickerTool->setImage(m_imageViewer->originalPixmap().toImage());
         }
-        setWindowTitle(tr("图片查看器 - %1").arg(fileName));
+        setWindowTitle(tr("ziv - %1").arg(fileName));
     });
     
     connect(m_imageViewer, &ImageViewer::scaleChanged, this, [this]() {

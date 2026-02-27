@@ -13,6 +13,9 @@ class ImageGraphicsView : public QGraphicsView
 public:
     explicit ImageGraphicsView(QWidget *parent = nullptr);
 
+    void setFixedCrosshairPosition(const QPointF &scenePos);
+    void clearFixedCrosshair();
+
 signals:
     void mouseMoved(QPointF scenePos);
     void mousePressed(QPointF scenePos);
@@ -39,6 +42,8 @@ private:
     bool m_rightButtonDragging;
     QPoint m_dragStartPos;
     bool m_isCrosshairMode;
+    QPointF m_fixedCrosshairPosition;
+    bool m_hasFixedCrosshair;
 };
 
 #endif // IMAGEGRAPHICSVIEW_H
