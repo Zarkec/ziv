@@ -20,6 +20,7 @@
 class ImageViewer;
 class MeasurementTool;
 class AngleMeasurementTool;
+class ColorPickerTool;
 class ImageGraphicsView;
 
 class MainWindow : public QMainWindow
@@ -46,6 +47,7 @@ private slots:
     void exportImage();
     void toggleMeasureMode();
     void toggleAngleMode();
+    void toggleColorPickerMode();
     void nextImage();
     void previousImage();
     void onPaletteChanged();
@@ -79,10 +81,12 @@ private:
     QAction *m_fitToWindowAction;
     QAction *m_measureAction;
     QAction *m_angleAction;
+    QAction *m_colorPickerAction;
 
     ImageViewer *m_imageViewer;
     MeasurementTool *m_measurementTool;
     AngleMeasurementTool *m_angleMeasurementTool;
+    ColorPickerTool *m_colorPickerTool;
 
     QSlider *m_zoomSlider;
     QSpinBox *m_zoomSpinBox;
@@ -93,6 +97,7 @@ private:
     // Overlay mode UI components
     QAction *m_overlayModeAction;
     QWidget *m_overlayControlPanel;
+    QWidget *m_rightPanel;  // 右侧颜色信息面板区域
 
     QLabel *m_image2PathLabel;
     QPushButton *m_loadImage2Button;

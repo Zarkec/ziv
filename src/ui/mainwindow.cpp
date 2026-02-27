@@ -24,6 +24,7 @@
 #include "core/imageviewer.h"
 #include "core/measurementtool.h"
 #include "core/anglemeasurementtool.h"
+#include "core/colorpickertool.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -34,13 +35,17 @@ MainWindow::MainWindow(QWidget *parent)
     , m_sizeLabel(nullptr)
     , m_fitToWindowAction(nullptr)
     , m_measureAction(nullptr)
+    , m_angleAction(nullptr)
+    , m_colorPickerAction(nullptr)
     , m_imageViewer(nullptr)
     , m_measurementTool(nullptr)
+    , m_colorPickerTool(nullptr)
     , m_zoomSlider(nullptr)
     , m_zoomSpinBox(nullptr)
     , m_isDarkTheme(false)
     , m_overlayModeAction(nullptr)
     , m_overlayControlPanel(nullptr)
+    , m_rightPanel(nullptr)
     , m_image2PathLabel(nullptr)
     , m_loadImage2Button(nullptr)
     , m_clearImage2Button(nullptr)
@@ -68,6 +73,7 @@ MainWindow::~MainWindow()
 {
     delete m_imageViewer;
     delete m_measurementTool;
+    delete m_colorPickerTool;
 }
 
 void MainWindow::openFile(const QString &fileName)
@@ -82,7 +88,16 @@ void MainWindow::setupUI()
     QWidget *centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
     
-    QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
+    // 主水平布局：左侧图片视图，右侧信息面板
+    QHBoxLayout *horizontalLayout = new QHBoxLayout(centralWidget);
+    horizontalLayout->setContentsMargins(0, 0, 0, 0);
+    horizontalLayout->setSpacing(0);
+    
+    // 左侧：图片视图区域（包含叠加控制面板）
+    QWidget *leftWidget = new QWidget(this);
+    QVBoxLayout *leftLayout = new QVBoxLayout(leftWidget);
+    leftLayout->setContentsMargins(0, 0, 0, 0);
+    leftLayout->setSpacing(0);
     
     m_graphicsScene = new QGraphicsScene(this);
     m_graphicsView = new ImageGraphicsView(this);
@@ -95,7 +110,29 @@ void MainWindow::setupUI()
     m_graphicsView->setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
     m_graphicsView->setViewportUpdateMode(QGraphicsView::SmartViewportUpdate);
     
-    mainLayout->addWidget(m_graphicsView);
+    leftLayout->addWidget(m_graphicsView);
+    horizontalLayout->addWidget(leftWidget, 1);  // 拉伸因子为1
+    
+    // 右侧：颜色信息面板区域
+    m_rightPanel = new QWidget(this);
+    m_rightPanel->setStyleSheet("QWidget { background-color: #1e1e1e; }");
+    m_rightPanel->setFixedWidth(255);
+    QVBoxLayout *rightLayout = new QVBoxLayout(m_rightPanel);
+    rightLayout->setContentsMargins(5, 5, 5, 5);
+    rightLayout->setSpacing(5);
+
+    m_measurementTool = new MeasurementTool(m_graphicsScene, m_graphicsView, this);
+    m_angleMeasurementTool = new AngleMeasurementTool(m_graphicsScene, m_graphicsView, this);
+    m_colorPickerTool = new ColorPickerTool(m_graphicsScene, m_graphicsView, this);
+
+    // 将颜色信息面板添加到右侧栏
+    rightLayout->addWidget(m_colorPickerTool->getColorInfoPanel());
+    rightLayout->addStretch();
+
+    horizontalLayout->addWidget(m_rightPanel);
+
+    // 初始隐藏右侧面板，只在取色模式时显示
+    m_rightPanel->setVisible(false);
     
     m_coordinateLabel = new QLabel("坐标: (0, 0)", this);
     m_scaleLabel = new QLabel("缩放:", this);
@@ -128,8 +165,8 @@ void MainWindow::setupUI()
     m_zoomSpinBox->setEnabled(false);
     statusBar()->addPermanentWidget(m_zoomSpinBox);
     
-    resize(1000, 650);
-    setMinimumSize(550, 400);
+    resize(1200, 650);
+    setMinimumSize(750, 400);
     setWindowTitle("图片查看器");
     setWindowIcon(QIcon(":/icons/icon.png"));
     
@@ -141,9 +178,6 @@ void MainWindow::setupUI()
     m_imageViewer->setZoomSlider(m_zoomSlider);
     m_imageViewer->setZoomSpinBox(m_zoomSpinBox);
     m_imageViewer->setImageIndexLabel(m_imageIndexLabel);
-    
-    m_measurementTool = new MeasurementTool(m_graphicsScene, m_graphicsView, this);
-    m_angleMeasurementTool = new AngleMeasurementTool(m_graphicsScene, m_graphicsView, this);
 
     createOverlayControlPanel();
 }
@@ -222,6 +256,13 @@ void MainWindow::setupActions()
     m_angleAction->setShortcut(tr("Ctrl+A"));
     m_iconActions["angle"] = m_angleAction;
     
+    // 取色器按钮
+    m_colorPickerAction = new QAction("取色器", this);
+    m_colorPickerAction->setIcon(QIcon(":/icons/light/colorpicker.png"));
+    m_colorPickerAction->setCheckable(true);
+    m_colorPickerAction->setShortcut(tr("Ctrl+P"));
+    m_iconActions["colorpicker"] = m_colorPickerAction;
+    
     QAction *previousImageAction = new QAction("上一张", this);
     previousImageAction->setIcon(QIcon(":/icons/light/previous.png"));
     previousImageAction->setShortcut(Qt::Key_Left);
@@ -253,6 +294,7 @@ m_overlayModeAction = new QAction("叠加模式", this);
     viewMenu->addSeparator();
     viewMenu->addAction(m_measureAction);
     viewMenu->addAction(m_angleAction);
+    viewMenu->addAction(m_colorPickerAction);
 viewMenu->addAction(m_overlayModeAction);
     viewMenu->addSeparator();
     viewMenu->addAction(m_fitToWindowAction);
@@ -279,7 +321,8 @@ viewMenu->addAction(m_overlayModeAction);
     toolBar->addAction(nextImageAction);
     toolBar->addSeparator();
     toolBar->addAction(m_measureAction);
-toolBar->addAction(m_angleAction);
+    toolBar->addAction(m_angleAction);
+    toolBar->addAction(m_colorPickerAction);
     toolBar->addAction(m_overlayModeAction);
     toolBar->addSeparator();
     toolBar->addAction(m_fitToWindowAction);
@@ -298,6 +341,7 @@ toolBar->addAction(m_angleAction);
     connect(nextImageAction, &QAction::triggered, this, &MainWindow::nextImage);
     connect(m_measureAction, &QAction::triggered, this, &MainWindow::toggleMeasureMode);
     connect(m_angleAction, &QAction::triggered, this, &MainWindow::toggleAngleMode);
+    connect(m_colorPickerAction, &QAction::triggered, this, &MainWindow::toggleColorPickerMode);
     connect(m_fitToWindowAction, &QAction::triggered, this, &MainWindow::fitToWindow);
     connect(originalSizeAction, &QAction::triggered, this, &MainWindow::originalSize);
 connect(m_overlayModeAction, &QAction::triggered, this, &MainWindow::toggleOverlayMode);
@@ -322,6 +366,7 @@ void MainWindow::setupConnections()
             m_imageViewer->updateCoordinates(scenePos);
             m_measurementTool->handleMouseMove(scenePos);
             m_angleMeasurementTool->handleMouseMove(scenePos);
+            m_colorPickerTool->handleMouseMove(scenePos);
         }
     });
     
@@ -385,6 +430,10 @@ void MainWindow::setupConnections()
     connect(m_imageViewer, &ImageViewer::imageLoaded, this, [this](const QString &fileName) {
         m_measurementTool->clearMeasurement();
         m_angleMeasurementTool->clearMeasurement();
+        // 更新取色器的图像数据
+        if (m_imageViewer->pixmapItem()) {
+            m_colorPickerTool->setImage(m_imageViewer->originalPixmap().toImage());
+        }
         setWindowTitle(tr("图片查看器 - %1").arg(fileName));
     });
     
@@ -526,6 +575,10 @@ void MainWindow::toggleMeasureMode()
     if (m_measureAction->isChecked()) {
         m_angleAction->setChecked(false);
         m_angleMeasurementTool->toggleAngleMode(false);
+        // 关闭取色模式并隐藏右侧面板
+        m_colorPickerAction->setChecked(false);
+        m_colorPickerTool->toggleColorPickerMode(false);
+        m_rightPanel->setVisible(false);
     }
     m_measurementTool->toggleMeasureMode(m_measureAction->isChecked());
 }
@@ -535,6 +588,10 @@ void MainWindow::toggleAngleMode()
     if (m_angleAction->isChecked()) {
         m_measureAction->setChecked(false);
         m_measurementTool->toggleMeasureMode(false);
+        // 关闭取色模式并隐藏右侧面板
+        m_colorPickerAction->setChecked(false);
+        m_colorPickerTool->toggleColorPickerMode(false);
+        m_rightPanel->setVisible(false);
     }
     m_angleMeasurementTool->toggleAngleMode(m_angleAction->isChecked());
 }
@@ -659,11 +716,17 @@ void MainWindow::createOverlayControlPanel()
 
     panelLayout->addStretch();
 
-    // Add panel to main layout (above graphics view)
+    // 将叠加控制面板插入到图片视图上方
     QWidget *centralWidget = this->centralWidget();
-    QVBoxLayout *mainLayout = qobject_cast<QVBoxLayout*>(centralWidget->layout());
-    if (mainLayout) {
-        mainLayout->insertWidget(0, m_overlayControlPanel);
+    QHBoxLayout *horizontalLayout = qobject_cast<QHBoxLayout*>(centralWidget->layout());
+    if (horizontalLayout) {
+        QWidget *leftWidget = horizontalLayout->itemAt(0)->widget();
+        if (leftWidget) {
+            QVBoxLayout *leftLayout = qobject_cast<QVBoxLayout*>(leftWidget->layout());
+            if (leftLayout) {
+                leftLayout->insertWidget(0, m_overlayControlPanel);
+            }
+        }
     }
 
     m_overlayControlPanel->setVisible(false);
@@ -686,6 +749,10 @@ void MainWindow::toggleOverlayMode()
         m_measurementTool->toggleMeasureMode(false);
         m_angleAction->setChecked(false);
         m_angleMeasurementTool->toggleAngleMode(false);
+        // 关闭取色模式并隐藏右侧面板
+        m_colorPickerAction->setChecked(false);
+        m_colorPickerTool->toggleColorPickerMode(false);
+        m_rightPanel->setVisible(false);
     }
 }
 
@@ -724,4 +791,31 @@ void MainWindow::onAlpha2Changed(int value)
     m_alpha2SpinBox->blockSignals(false);
 
     m_imageViewer->setAlpha2(value / 100.0);
+}
+
+void MainWindow::toggleColorPickerMode()
+{
+    if (!m_imageViewer->isEnabled()) {
+        m_colorPickerAction->setChecked(false);
+        QMessageBox::warning(this, tr("警告"), tr("请先打开一张图片"));
+        return;
+    }
+
+    // 如果激活取色模式，关闭其他模式
+    if (m_colorPickerAction->isChecked()) {
+        m_measureAction->setChecked(false);
+        m_measurementTool->toggleMeasureMode(false);
+        m_angleAction->setChecked(false);
+        m_angleMeasurementTool->toggleAngleMode(false);
+        m_overlayModeAction->setChecked(false);
+        m_imageViewer->enableOverlayMode(false);
+
+        // 设置图像数据
+        m_colorPickerTool->setImage(m_imageViewer->originalPixmap().toImage());
+    }
+
+    m_colorPickerTool->toggleColorPickerMode(m_colorPickerAction->isChecked());
+
+    // 显示/隐藏右侧面板
+    m_rightPanel->setVisible(m_colorPickerAction->isChecked());
 }
