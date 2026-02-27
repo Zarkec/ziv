@@ -172,7 +172,7 @@ void MainWindow::setupUI()
     
     resize(1200, 650);
     setMinimumSize(750, 400);
-    setWindowTitle("图片查看器");
+    setWindowTitle("ZIV");
     setWindowIcon(QIcon(":/icons/icon.png"));
     
     m_imageViewer = new ImageViewer(m_graphicsView, m_graphicsScene, this);
@@ -448,7 +448,7 @@ void MainWindow::setupConnections()
         if (m_imageViewer->pixmapItem()) {
             m_colorPickerTool->setImage(m_imageViewer->originalPixmap().toImage());
         }
-        setWindowTitle(tr("图片查看器 - %1").arg(fileName));
+        setWindowTitle(tr("ZIV - %1").arg(fileName));
     });
     
     connect(m_imageViewer, &ImageViewer::scaleChanged, this, [this]() {

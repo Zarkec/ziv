@@ -43,7 +43,7 @@ void MeasurementTool::handleMousePress(QPointF scenePos)
         m_isMeasureCompleted = false;
         
         m_measureLine = new QGraphicsLineItem();
-        m_measureLine->setPen(QPen(Qt::red, 2, Qt::DashLine));
+        m_measureLine->setPen(QPen(Qt::red, 2, Qt::SolidLine));
         m_scene->addItem(m_measureLine);
         
         m_measureText = new QGraphicsTextItem();
@@ -160,7 +160,7 @@ void MeasurementTool::drawMeasurementLine()
     fontSize = qMax(fontSize, 6.0);
     textOffset = qMax(textOffset, 15.0);
     
-    m_measureLine->setPen(QPen(Qt::red, lineWidth, Qt::DashLine));
+    m_measureLine->setPen(QPen(Qt::red, lineWidth, Qt::SolidLine));
     
     m_measureLine->setLine(m_measureStart.x(), m_measureStart.y(), m_measureEnd.x(), m_measureEnd.y());
     
