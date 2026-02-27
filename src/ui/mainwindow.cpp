@@ -379,6 +379,15 @@ void MainWindow::setupConnections()
         if (m_imageViewer->pixmapItem() && m_graphicsScene->sceneRect().contains(scenePos)) {
             m_measurementTool->handleMousePress(scenePos);
             m_angleMeasurementTool->handleMousePress(scenePos);
+            m_colorPickerTool->handleMousePress(scenePos);
+        }
+    });
+
+    connect(m_colorPickerTool, &ColorPickerTool::selectionModeChanged, this, [this](bool enabled, QPointF position) {
+        if (enabled) {
+            m_graphicsView->setFixedCrosshairPosition(position);
+        } else {
+            m_graphicsView->clearFixedCrosshair();
         }
     });
     

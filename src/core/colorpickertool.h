@@ -33,6 +33,9 @@ public:
     // 处理鼠标移动事件
     void handleMouseMove(QPointF scenePos);
 
+    // 处理鼠标点击事件
+    void handleMousePress(QPointF scenePos);
+
     // 获取当前是否处于取色模式
     bool isColorPickerMode() const;
 
@@ -51,6 +54,9 @@ signals:
 
     // 颜色改变信号
     void colorChanged(const QColor &color);
+
+    // 选中模式改变信号
+    void selectionModeChanged(bool enabled, QPointF position);
 
 private slots:
     // RGB 值改变槽函数
@@ -107,6 +113,8 @@ private:
     QGraphicsView *m_view;
 
     bool m_isColorPickerMode;
+    bool m_isSelectionMode;
+    QPointF m_selectedPosition;
     QImage m_image;
 
     // 颜色信息面板

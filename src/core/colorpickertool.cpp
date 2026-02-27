@@ -12,6 +12,7 @@ ColorPickerTool::ColorPickerTool(QGraphicsScene *scene, QGraphicsView *view, QOb
     , m_scene(scene)
     , m_view(view)
     , m_isColorPickerMode(false)
+    , m_isSelectionMode(false)
     , m_colorInfoPanel(nullptr)
     , m_colorPreview(nullptr)
     , m_rSpinBox(nullptr)
@@ -44,14 +45,14 @@ ColorPickerTool::~ColorPickerTool()
 void ColorPickerTool::toggleColorPickerMode(bool enabled)
 {
     m_isColorPickerMode = enabled;
+    m_isSelectionMode = false;
 
     if (!m_isColorPickerMode) {
-        // 退出取色模式
         m_view->setCursor(Qt::ArrowCursor);
         m_view->setDragMode(QGraphicsView::ScrollHandDrag);
         m_colorInfoPanel->hide();
+        emit selectionModeChanged(false, QPointF());
     } else {
-        // 进入取色模式
         m_view->setCursor(Qt::CrossCursor);
         m_view->setDragMode(QGraphicsView::NoDrag);
         m_colorInfoPanel->show();
@@ -66,26 +67,50 @@ void ColorPickerTool::handleMouseMove(QPointF scenePos)
         return;
     }
 
-    // 获取场景坐标对应的图像坐标
     int x = static_cast<int>(scenePos.x());
     int y = static_cast<int>(scenePos.y());
 
-    // 检查坐标是否在图像范围内
     if (x < 0 || x >= m_image.width() || y < 0 || y >= m_image.height()) {
         return;
     }
 
-    // 获取像素颜色
+    if (m_isSelectionMode) {
+        m_coordLabel->setText(QString("坐标: (%1, %2) [选中模式]").arg(x).arg(y));
+        return;
+    }
+
     QColor color = m_image.pixelColor(x, y);
     m_currentColor = color;
 
-    // 更新显示
     updateColorDisplay(color);
 
-    // 更新坐标显示
     m_coordLabel->setText(QString("坐标: (%1, %2)").arg(x).arg(y));
 
     emit colorChanged(color);
+}
+
+void ColorPickerTool::handleMousePress(QPointF scenePos)
+{
+    if (!m_isColorPickerMode) {
+        return;
+    }
+
+    m_isSelectionMode = !m_isSelectionMode;
+
+    if (m_isSelectionMode) {
+        m_selectedPosition = scenePos;
+        int x = static_cast<int>(scenePos.x());
+        int y = static_cast<int>(scenePos.y());
+
+        if (x >= 0 && x < m_image.width() && y >= 0 && y < m_image.height()) {
+            QColor color = m_image.pixelColor(x, y);
+            m_currentColor = color;
+            updateColorDisplay(color);
+            m_coordLabel->setText(QString("坐标: (%1, %2) [选中模式]").arg(x).arg(y));
+        }
+    }
+
+    emit selectionModeChanged(m_isSelectionMode, m_selectedPosition);
 }
 
 bool ColorPickerTool::isColorPickerMode() const

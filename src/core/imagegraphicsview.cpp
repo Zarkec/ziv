@@ -12,6 +12,7 @@ ImageGraphicsView::ImageGraphicsView(QWidget *parent)
     , m_mouseInView(false)
     , m_rightButtonDragging(false)
     , m_isCrosshairMode(false)
+    , m_hasFixedCrosshair(false)
 {
     setRenderHint(QPainter::Antialiasing);
     setRenderHint(QPainter::SmoothPixmapTransform);
@@ -153,21 +154,40 @@ void ImageGraphicsView::paintEvent(QPaintEvent *event)
 {
     QGraphicsView::paintEvent(event);
     
-    // 当光标是 CrossCursor 或者正在右键拖动时绘制十字准星
-    if ((cursor().shape() == Qt::CrossCursor || m_isCrosshairMode) && m_mouseInView) {
-        QPainter painter(viewport());
-        painter.setRenderHint(QPainter::Antialiasing);
-        
-        // 设置十字准星的颜色和线宽
-        QPen pen(QColor(0, 255, 0, 200)); // 半透明绿色
+    QPainter painter(viewport());
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    if (m_hasFixedCrosshair) {
+        QPoint fixedPos = mapFromScene(m_fixedCrosshairPosition);
+        QPen fixedPen(QColor(255, 255, 0, 200));
+        fixedPen.setWidth(3);
+        fixedPen.setStyle(Qt::SolidLine);
+        painter.setPen(fixedPen);
+
+        painter.drawLine(0, fixedPos.y(), viewport()->width(), fixedPos.y());
+        painter.drawLine(fixedPos.x(), 0, fixedPos.x(), viewport()->height());
+    }
+
+    if ((cursor().shape() == Qt::CrossCursor || m_isCrosshairMode) && !m_hasFixedCrosshair && m_mouseInView) {
+        QPen pen(QColor(0, 255, 0, 200));
         pen.setWidth(2);
         pen.setStyle(Qt::DashLine);
         painter.setPen(pen);
-        
-        // 绘制水平线（横跨整个视口）
+
         painter.drawLine(0, m_lastMousePos.y(), viewport()->width(), m_lastMousePos.y());
-        
-        // 绘制垂直线（横跨整个视口）
         painter.drawLine(m_lastMousePos.x(), 0, m_lastMousePos.x(), viewport()->height());
     }
+}
+
+void ImageGraphicsView::setFixedCrosshairPosition(const QPointF &scenePos)
+{
+    m_fixedCrosshairPosition = scenePos;
+    m_hasFixedCrosshair = true;
+    viewport()->update();
+}
+
+void ImageGraphicsView::clearFixedCrosshair()
+{
+    m_hasFixedCrosshair = false;
+    viewport()->update();
 }
