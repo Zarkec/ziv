@@ -42,6 +42,9 @@ public:
     // 获取颜色信息面板
     QWidget* getColorInfoPanel() const;
 
+    // 更新主题样式
+    void updateTheme(bool isDarkTheme);
+
 signals:
     // 模式改变信号
     void modeChanged(bool enabled);
@@ -143,6 +146,9 @@ private:
 
     // 标志：正在程序化更新，避免循环触发
     bool m_updating;
+
+    // 是否深色主题
+    bool m_isDarkTheme;
 };
 
 #endif // COLORPICKERTOOL_H

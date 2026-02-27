@@ -115,7 +115,11 @@ void MainWindow::setupUI()
     
     // 右侧：颜色信息面板区域
     m_rightPanel = new QWidget(this);
-    m_rightPanel->setStyleSheet("QWidget { background-color: #1e1e1e; }");
+    if (m_isDarkTheme) {
+        m_rightPanel->setStyleSheet("QWidget { background-color: #1e1e1e; }");
+    } else {
+        m_rightPanel->setStyleSheet("QWidget { background-color: #e8e8e8; }");
+    }
     m_rightPanel->setFixedWidth(255);
     QVBoxLayout *rightLayout = new QVBoxLayout(m_rightPanel);
     rightLayout->setContentsMargins(5, 5, 5, 5);
@@ -124,6 +128,7 @@ void MainWindow::setupUI()
     m_measurementTool = new MeasurementTool(m_graphicsScene, m_graphicsView, this);
     m_angleMeasurementTool = new AngleMeasurementTool(m_graphicsScene, m_graphicsView, this);
     m_colorPickerTool = new ColorPickerTool(m_graphicsScene, m_graphicsView, this);
+    m_colorPickerTool->updateTheme(m_isDarkTheme);  // 设置初始主题
 
     // 将颜色信息面板添加到右侧栏
     rightLayout->addWidget(m_colorPickerTool->getColorInfoPanel());
@@ -610,6 +615,14 @@ void MainWindow::onPaletteChanged()
 {
     m_isDarkTheme = isSystemDarkTheme();
     updateThemeIcons();
+    m_colorPickerTool->updateTheme(m_isDarkTheme);
+
+    // 更新右侧面板背景色
+    if (m_isDarkTheme) {
+        m_rightPanel->setStyleSheet("QWidget { background-color: #1e1e1e; }");
+    } else {
+        m_rightPanel->setStyleSheet("QWidget { background-color: #e8e8e8; }");
+    }
 }
 
 bool MainWindow::isSystemDarkTheme()

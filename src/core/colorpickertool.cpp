@@ -29,6 +29,7 @@ ColorPickerTool::ColorPickerTool(QGraphicsScene *scene, QGraphicsView *view, QOb
     , m_hexEdit(nullptr)
     , m_coordLabel(nullptr)
     , m_updating(false)
+    , m_isDarkTheme(true)
 {
     createColorInfoPanel();
 }
@@ -627,4 +628,33 @@ void ColorPickerTool::xyzToRgb(double x, double y, double z, int &r, int &g, int
     r = qBound(0, static_cast<int>(rNorm * 255.0 + 0.5), 255);
     g = qBound(0, static_cast<int>(gNorm * 255.0 + 0.5), 255);
     b = qBound(0, static_cast<int>(bNorm * 255.0 + 0.5), 255);
+}
+
+void ColorPickerTool::updateTheme(bool isDarkTheme)
+{
+    m_isDarkTheme = isDarkTheme;
+
+    if (isDarkTheme) {
+        // 深色主题
+        m_colorInfoPanel->setStyleSheet(
+            "QWidget { background-color: #2d2d2d; border-radius: 8px; }"
+            "QLabel { color: #ffffff; }"
+            "QSpinBox, QDoubleSpinBox { background-color: #3d3d3d; color: #ffffff; border: 1px solid #555555; border-radius: 3px; padding: 2px; }"
+            "QSpinBox:focus, QDoubleSpinBox:focus { border: 1px solid #0078d4; }"
+            "QLineEdit { background-color: #3d3d3d; color: #ffffff; border: 1px solid #555555; border-radius: 3px; padding: 2px; }"
+            "QLineEdit:focus { border: 1px solid #0078d4; }"
+        );
+        m_colorPreview->setStyleSheet(QString("background-color: %1; border: 2px solid #ffffff; border-radius: 5px;").arg(m_currentColor.name()));
+    } else {
+        // 浅色主题
+        m_colorInfoPanel->setStyleSheet(
+            "QWidget { background-color: #f5f5f5; border-radius: 8px; }"
+            "QLabel { color: #000000; }"
+            "QSpinBox, QDoubleSpinBox { background-color: #ffffff; color: #000000; border: 1px solid #cccccc; border-radius: 3px; padding: 2px; }"
+            "QSpinBox:focus, QDoubleSpinBox:focus { border: 1px solid #0078d4; }"
+            "QLineEdit { background-color: #ffffff; color: #000000; border: 1px solid #cccccc; border-radius: 3px; padding: 2px; }"
+            "QLineEdit:focus { border: 1px solid #0078d4; }"
+        );
+        m_colorPreview->setStyleSheet(QString("background-color: %1; border: 2px solid #333333; border-radius: 5px;").arg(m_currentColor.name()));
+    }
 }
