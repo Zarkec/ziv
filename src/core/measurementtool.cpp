@@ -1,6 +1,10 @@
 #include "measurementtool.h"
+#include "utils/panelstyle.h"
 #include <QFont>
 #include <QPen>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QFrame>
 #include <cmath>
 
 MeasurementTool::MeasurementTool(QGraphicsScene *scene, QGraphicsView *view, QObject *parent)
@@ -12,7 +16,14 @@ MeasurementTool::MeasurementTool(QGraphicsScene *scene, QGraphicsView *view, QOb
     , m_isMeasureMode(false)
     , m_isMeasureCompleted(false)
     , m_isShiftPressed(false)
+    , m_infoPanel(nullptr)
+    , m_distanceLabel(nullptr)
+    , m_startPosLabel(nullptr)
+    , m_endPosLabel(nullptr)
+    , m_deltaLabel(nullptr)
+    , m_isDarkTheme(false)
 {
+    createInfoPanel();
 }
 
 void MeasurementTool::toggleMeasureMode(bool enabled)
@@ -124,6 +135,9 @@ void MeasurementTool::clearMeasurement()
     m_measureStart = QPointF();
     m_measureEnd = QPointF();
     m_isMeasureCompleted = false;
+    
+    // 重置信息面板
+    updateInfoPanel(0, QPointF(), QPointF());
 }
 
 void MeasurementTool::updateMeasurementScale()
@@ -179,6 +193,9 @@ void MeasurementTool::drawMeasurementLine()
         (m_measureStart.y() + m_measureEnd.y()) / 2 - textOffset
     );
     m_measureText->setPos(midPoint);
+    
+    // 更新信息面板
+    updateInfoPanel(distance, m_measureStart, m_measureEnd);
 }
 
 double MeasurementTool::calculateDistance(const QPointF &p1, const QPointF &p2)
@@ -186,4 +203,96 @@ double MeasurementTool::calculateDistance(const QPointF &p1, const QPointF &p2)
     double dx = p2.x() - p1.x();
     double dy = p2.y() - p1.y();
     return sqrt(dx * dx + dy * dy);
+}
+
+QWidget* MeasurementTool::getInfoPanel() const
+{
+    return m_infoPanel;
+}
+
+void MeasurementTool::updateTheme(bool isDarkTheme)
+{
+    m_isDarkTheme = isDarkTheme;
+    if (m_infoPanel) {
+        PanelStyle::instance().applyPanelStyle(m_infoPanel, isDarkTheme);
+        
+        QList<QFrame*> frames = m_infoPanel->findChildren<QFrame*>();
+        for (QFrame* frame : frames) {
+            if (frame->frameShape() == QFrame::HLine) {
+                frame->setStyleSheet(PanelStyle::instance().getSeparatorStyleSheet(isDarkTheme));
+            }
+        }
+    }
+}
+
+void MeasurementTool::createInfoPanel()
+{
+    m_infoPanel = new QWidget();
+    m_infoPanel->setObjectName("toolPanel");
+    QVBoxLayout *layout = new QVBoxLayout(m_infoPanel);
+    layout->setContentsMargins(10, 10, 10, 10);
+    layout->setSpacing(6);
+    
+    PanelStyle& style = PanelStyle::instance();
+    
+    QLabel *titleLabel = style.createTitleLabel("测量工具", m_isDarkTheme);
+    layout->addWidget(titleLabel);
+    
+    QFrame *line0 = style.createSeparator(m_isDarkTheme);
+    layout->addWidget(line0);
+    
+    QLabel *distanceTitle = style.createSectionLabel("距离", m_isDarkTheme);
+    layout->addWidget(distanceTitle);
+    
+    m_distanceLabel = style.createEmphasisLabel("0.00 像素", m_isDarkTheme);
+    layout->addWidget(m_distanceLabel);
+    
+    QFrame *line1 = style.createSeparator(m_isDarkTheme);
+    layout->addWidget(line1);
+    
+    QLabel *startTitle = style.createSectionLabel("起点", m_isDarkTheme);
+    layout->addWidget(startTitle);
+    
+    m_startPosLabel = style.createContentLabel("(0.0, 0.0)", m_isDarkTheme);
+    layout->addWidget(m_startPosLabel);
+    
+    QFrame *line2 = style.createSeparator(m_isDarkTheme);
+    layout->addWidget(line2);
+    
+    QLabel *endTitle = style.createSectionLabel("终点", m_isDarkTheme);
+    layout->addWidget(endTitle);
+    
+    m_endPosLabel = style.createContentLabel("(0.0, 0.0)", m_isDarkTheme);
+    layout->addWidget(m_endPosLabel);
+    
+    QFrame *line3 = style.createSeparator(m_isDarkTheme);
+    layout->addWidget(line3);
+    
+    QLabel *deltaTitle = style.createSectionLabel("增量", m_isDarkTheme);
+    layout->addWidget(deltaTitle);
+    
+    m_deltaLabel = style.createContentLabel("Δx=0.0, Δy=0.0", m_isDarkTheme);
+    layout->addWidget(m_deltaLabel);
+    
+    layout->addStretch();
+    
+    style.applyPanelStyle(m_infoPanel, m_isDarkTheme);
+}
+
+void MeasurementTool::updateInfoPanel(double distance, const QPointF &start, const QPointF &end)
+{
+    if (m_distanceLabel) {
+        m_distanceLabel->setText(QString("%1 像素").arg(distance, 0, 'f', 2));
+    }
+    if (m_startPosLabel) {
+        m_startPosLabel->setText(QString("(%1, %2)").arg(start.x(), 0, 'f', 1).arg(start.y(), 0, 'f', 1));
+    }
+    if (m_endPosLabel) {
+        m_endPosLabel->setText(QString("(%1, %2)").arg(end.x(), 0, 'f', 1).arg(end.y(), 0, 'f', 1));
+    }
+    if (m_deltaLabel) {
+        double dx = end.x() - start.x();
+        double dy = end.y() - start.y();
+        m_deltaLabel->setText(QString("Δx=%1, Δy=%2").arg(dx, 0, 'f', 1).arg(dy, 0, 'f', 1));
+    }
 }

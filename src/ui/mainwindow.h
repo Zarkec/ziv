@@ -16,6 +16,7 @@
 #include <QDropEvent>
 #include <QMimeData>
 #include <QPushButton>
+#include <QDockWidget>
 
 class ImageViewer;
 class MeasurementTool;
@@ -54,7 +55,7 @@ private slots:
     void toggleOverlayMode();
     void loadSecondImage();
     void clearSecondImage();
-void onAlpha1Changed(int value);
+    void onAlpha1Changed(int value);
     void onAlpha2Changed(int value);
 
 protected:
@@ -69,6 +70,8 @@ private:
     void updateThemeIcons();
     bool isSystemDarkTheme();
     void createOverlayControlPanel();
+    void updateOverlayPanelTheme();
+    void updateToolsPanel(int toolIndex);
 
     ImageGraphicsView *m_graphicsView;
     QGraphicsScene *m_graphicsScene;
@@ -97,8 +100,16 @@ private:
     // Overlay mode UI components
     QAction *m_overlayModeAction;
     QWidget *m_overlayControlPanel;
-    QWidget *m_rightPanel;  // 右侧颜色信息面板区域
-
+    
+    // 工具栏 DockWidget (右侧上方)
+    QDockWidget *m_toolsBarDock;
+    QToolBar *m_toolsToolBar;
+    
+    // 工具面板 (使用 QDockWidget) (右侧下方)
+    QDockWidget *m_toolsDock;
+    QWidget *m_toolsPanel;
+    class QStackedWidget *m_toolsStack;
+    
     QLabel *m_image2PathLabel;
     QPushButton *m_loadImage2Button;
     QPushButton *m_clearImage2Button;
@@ -110,6 +121,9 @@ private:
     QLabel *m_alpha2Label;
     QSlider *m_alpha2Slider;
     QSpinBox *m_alpha2SpinBox;
+    
+    // 叠加控制面板容器
+    QWidget *m_overlaySettingsPanel;
 };
 
 #endif // MAINWINDOW_H

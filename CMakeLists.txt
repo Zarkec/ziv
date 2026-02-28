@@ -54,6 +54,14 @@ set(CORE_HEADERS
     ${SRC_DIR}/core/colorpickertool.h
 )
 
+set(UTILS_SOURCES
+    ${SRC_DIR}/utils/panelstyle.cpp
+)
+
+set(UTILS_HEADERS
+    ${SRC_DIR}/utils/panelstyle.h
+)
+
 set(UI_SOURCES
     ${SRC_DIR}/ui/mainwindow.cpp
 )
@@ -69,6 +77,8 @@ set(MAIN_SOURCES
 set(ALL_SOURCES
     ${CORE_SOURCES}
     ${CORE_HEADERS}
+    ${UTILS_SOURCES}
+    ${UTILS_HEADERS}
     ${UI_SOURCES}
     ${UI_HEADERS}
     ${MAIN_SOURCES}
@@ -109,6 +119,7 @@ target_include_directories(ziv PRIVATE
     ${SRC_DIR}
     ${SRC_DIR}/core
     ${SRC_DIR}/ui
+    ${SRC_DIR}/utils
     ${CMAKE_BINARY_DIR}
     ${OpenCV_INCLUDE_DIRS}
 )

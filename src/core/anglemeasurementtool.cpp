@@ -1,7 +1,10 @@
 #include "anglemeasurementtool.h"
+#include "utils/panelstyle.h"
 #include <QFont>
 #include <QPen>
 #include <QPainterPath>
+#include <QVBoxLayout>
+#include <QFrame>
 #include <cmath>
 
 AngleMeasurementTool::AngleMeasurementTool(QGraphicsScene *scene, QGraphicsView *view, QObject *parent)
@@ -16,7 +19,14 @@ AngleMeasurementTool::AngleMeasurementTool(QGraphicsScene *scene, QGraphicsView 
     , m_isAngleMode(false)
     , m_isAngleCompleted(false)
     , m_isShiftPressed(false)
+    , m_infoPanel(nullptr)
+    , m_angleLabel(nullptr)
+    , m_vertexLabel(nullptr)
+    , m_line1Label(nullptr)
+    , m_line2Label(nullptr)
+    , m_isDarkTheme(false)
 {
+    createInfoPanel();
 }
 
 void AngleMeasurementTool::toggleAngleMode(bool enabled)
@@ -159,6 +169,9 @@ void AngleMeasurementTool::clearMeasurement()
     m_secondEndPoint = QPointF();
     m_clickCount = 0;
     m_isAngleCompleted = false;
+    
+    // 重置信息面板
+    updateInfoPanel(0, QPointF());
 }
 
 void AngleMeasurementTool::updateMeasurementScale()
@@ -267,6 +280,13 @@ void AngleMeasurementTool::drawAngleMeasurement()
         );
     }
     m_angleText->setPos(textPos);
+    
+    // 更新信息面板
+    if (m_clickCount >= 2) {
+        updateInfoPanel(angleDiff, m_vertex);
+    } else {
+        updateInfoPanel(0, m_vertex);
+    }
 }
 
 double AngleMeasurementTool::calculateAngle(const QPointF &p1, const QPointF &p2)
@@ -317,4 +337,100 @@ QPointF AngleMeasurementTool::constrainAngle(const QPointF &vertex, const QPoint
     );
     
     return constrainedPoint;
+}
+
+QWidget* AngleMeasurementTool::getInfoPanel() const
+{
+    return m_infoPanel;
+}
+
+void AngleMeasurementTool::updateTheme(bool isDarkTheme)
+{
+    m_isDarkTheme = isDarkTheme;
+    if (m_infoPanel) {
+        PanelStyle::instance().applyPanelStyle(m_infoPanel, isDarkTheme);
+        
+        QList<QFrame*> frames = m_infoPanel->findChildren<QFrame*>();
+        for (QFrame* frame : frames) {
+            if (frame->frameShape() == QFrame::HLine) {
+                frame->setStyleSheet(PanelStyle::instance().getSeparatorStyleSheet(isDarkTheme));
+            }
+        }
+    }
+}
+
+void AngleMeasurementTool::createInfoPanel()
+{
+    m_infoPanel = new QWidget();
+    m_infoPanel->setObjectName("toolPanel");
+    QVBoxLayout *layout = new QVBoxLayout(m_infoPanel);
+    layout->setContentsMargins(10, 10, 10, 10);
+    layout->setSpacing(6);
+    
+    PanelStyle& style = PanelStyle::instance();
+    
+    QLabel *titleLabel = style.createTitleLabel("测角工具", m_isDarkTheme);
+    layout->addWidget(titleLabel);
+    
+    QFrame *line0 = style.createSeparator(m_isDarkTheme);
+    layout->addWidget(line0);
+    
+    QLabel *angleTitle = style.createSectionLabel("角度", m_isDarkTheme);
+    layout->addWidget(angleTitle);
+    
+    m_angleLabel = style.createEmphasisLabel("0.00°", m_isDarkTheme);
+    layout->addWidget(m_angleLabel);
+    
+    QFrame *line1 = style.createSeparator(m_isDarkTheme);
+    layout->addWidget(line1);
+    
+    QLabel *vertexTitle = style.createSectionLabel("顶点", m_isDarkTheme);
+    layout->addWidget(vertexTitle);
+    
+    m_vertexLabel = style.createContentLabel("(0.0, 0.0)", m_isDarkTheme);
+    layout->addWidget(m_vertexLabel);
+    
+    QFrame *line2 = style.createSeparator(m_isDarkTheme);
+    layout->addWidget(line2);
+    
+    QLabel *line1Title = style.createSectionLabel("线1角度", m_isDarkTheme);
+    layout->addWidget(line1Title);
+    
+    m_line1Label = style.createContentLabel("0.0°", m_isDarkTheme);
+    layout->addWidget(m_line1Label);
+    
+    QFrame *line3 = style.createSeparator(m_isDarkTheme);
+    layout->addWidget(line3);
+    
+    QLabel *line2Title = style.createSectionLabel("线2角度", m_isDarkTheme);
+    layout->addWidget(line2Title);
+    
+    m_line2Label = style.createContentLabel("0.0°", m_isDarkTheme);
+    layout->addWidget(m_line2Label);
+    
+    layout->addStretch();
+    
+    style.applyPanelStyle(m_infoPanel, m_isDarkTheme);
+}
+
+void AngleMeasurementTool::updateInfoPanel(double angle, const QPointF &vertex)
+{
+    if (m_angleLabel) {
+        m_angleLabel->setText(QString("%1°").arg(angle, 0, 'f', 2));
+    }
+    if (m_vertexLabel) {
+        m_vertexLabel->setText(QString("(%1, %2)").arg(vertex.x(), 0, 'f', 1).arg(vertex.y(), 0, 'f', 1));
+    }
+    if (m_line1Label && m_clickCount >= 1) {
+        double angle1 = calculateAngle(m_vertex, m_firstEndPoint);
+        m_line1Label->setText(QString("%1°").arg(angle1, 0, 'f', 1));
+    } else if (m_line1Label) {
+        m_line1Label->setText(QString("%1°").arg(0.0, 0, 'f', 1));
+    }
+    if (m_line2Label && m_clickCount >= 2) {
+        double angle2 = calculateAngle(m_vertex, m_secondEndPoint);
+        m_line2Label->setText(QString("%1°").arg(angle2, 0, 'f', 1));
+    } else if (m_line2Label) {
+        m_line2Label->setText(QString("%1°").arg(0.0, 0, 'f', 1));
+    }
 }

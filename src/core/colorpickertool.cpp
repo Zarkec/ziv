@@ -1,4 +1,5 @@
 #include "colorpickertool.h"
+#include "utils/panelstyle.h"
 
 #include <QGraphicsPixmapItem>
 #include <QPixmap>
@@ -50,12 +51,10 @@ void ColorPickerTool::toggleColorPickerMode(bool enabled)
     if (!m_isColorPickerMode) {
         m_view->setCursor(Qt::ArrowCursor);
         m_view->setDragMode(QGraphicsView::ScrollHandDrag);
-        m_colorInfoPanel->hide();
         emit selectionModeChanged(false, QPointF());
     } else {
         m_view->setCursor(Qt::CrossCursor);
         m_view->setDragMode(QGraphicsView::NoDrag);
-        m_colorInfoPanel->show();
     }
 
     emit modeChanged(enabled);
@@ -130,77 +129,60 @@ QWidget* ColorPickerTool::getColorInfoPanel() const
 
 void ColorPickerTool::createColorInfoPanel()
 {
-    // 创建颜色信息面板
     m_colorInfoPanel = new QWidget();
     m_colorInfoPanel->setMinimumWidth(180);
-    m_colorInfoPanel->setStyleSheet(
-        "QWidget { background-color: #2d2d2d; border-radius: 8px; }"
-        "QLabel { color: #ffffff; }"
-        "QSpinBox, QDoubleSpinBox { background-color: #3d3d3d; color: #ffffff; border: 1px solid #555555; border-radius: 3px; padding: 2px; }"
-        "QSpinBox:focus, QDoubleSpinBox:focus { border: 1px solid #0078d4; }"
-        "QLineEdit { background-color: #3d3d3d; color: #ffffff; border: 1px solid #555555; border-radius: 3px; padding: 2px; }"
-        "QLineEdit:focus { border: 1px solid #0078d4; }"
-    );
+    m_colorInfoPanel->setObjectName("toolPanel");
 
     QVBoxLayout *mainLayout = new QVBoxLayout(m_colorInfoPanel);
     mainLayout->setContentsMargins(10, 10, 10, 10);
     mainLayout->setSpacing(6);
 
-    // 标题
-    QLabel *titleLabel = new QLabel("颜色信息");
-    titleLabel->setStyleSheet("font-weight: bold; font-size: 13px; color: #ffffff;");
-    titleLabel->setAlignment(Qt::AlignCenter);
+    PanelStyle& style = PanelStyle::instance();
+
+    QLabel *titleLabel = style.createTitleLabel("颜色信息", m_isDarkTheme);
     mainLayout->addWidget(titleLabel);
 
-    // 分隔线
-    QFrame *line0 = new QFrame();
-    line0->setFrameShape(QFrame::HLine);
-    line0->setStyleSheet("background-color: #555555;");
+    QFrame *line0 = style.createSeparator(m_isDarkTheme);
     mainLayout->addWidget(line0);
 
-    // 颜色预览
     QHBoxLayout *previewLayout = new QHBoxLayout();
     m_colorPreview = new QLabel();
     m_colorPreview->setFixedSize(50, 50);
-    m_colorPreview->setStyleSheet("background-color: #000000; border: 2px solid #ffffff; border-radius: 5px;");
+    QString previewBorderStyle = m_isDarkTheme ? 
+        "background-color: #000000; border: 2px solid #ffffff; border-radius: 5px;" :
+        "background-color: #000000; border: 2px solid #333333; border-radius: 5px;";
+    m_colorPreview->setStyleSheet(previewBorderStyle);
     m_colorPreview->setScaledContents(true);
     previewLayout->addWidget(m_colorPreview);
 
-    // HEX值输入
     QVBoxLayout *hexLayout = new QVBoxLayout();
-    QLabel *hexTitleLabel = new QLabel("HEX:");
-    hexTitleLabel->setStyleSheet("font-weight: bold; font-size: 11px;");
+    QLabel *hexTitleLabel = style.createSectionLabel("HEX:", m_isDarkTheme);
     m_hexEdit = new QLineEdit("#000000");
     m_hexEdit->setMaxLength(7);
     m_hexEdit->setFixedWidth(80);
-    m_hexEdit->setStyleSheet("font-family: Consolas, monospace;");
+    m_hexEdit->setFont(style.getContentFont());
     hexLayout->addWidget(hexTitleLabel);
     hexLayout->addWidget(m_hexEdit);
     previewLayout->addLayout(hexLayout);
     previewLayout->addStretch();
     mainLayout->addLayout(previewLayout);
 
-    // 分隔线
-    QFrame *line1 = new QFrame();
-    line1->setFrameShape(QFrame::HLine);
-    line1->setStyleSheet("background-color: #555555;");
+    QFrame *line1 = style.createSeparator(m_isDarkTheme);
     mainLayout->addWidget(line1);
 
-    // RGB 控件
-    QLabel *rgbTitle = new QLabel("RGB");
-    rgbTitle->setStyleSheet("font-weight: bold; font-size: 11px;");
+    QLabel *rgbTitle = style.createSectionLabel("RGB", m_isDarkTheme);
     mainLayout->addWidget(rgbTitle);
 
     QHBoxLayout *rgbLayout = new QHBoxLayout();
-    QLabel *rLabel = new QLabel("R:");
+    QLabel *rLabel = style.createContentLabel("R:", m_isDarkTheme);
     m_rSpinBox = new QSpinBox();
     m_rSpinBox->setRange(0, 255);
     m_rSpinBox->setFixedWidth(55);
-    QLabel *gLabel = new QLabel("G:");
+    QLabel *gLabel = style.createContentLabel("G:", m_isDarkTheme);
     m_gSpinBox = new QSpinBox();
     m_gSpinBox->setRange(0, 255);
     m_gSpinBox->setFixedWidth(55);
-    QLabel *bLabel = new QLabel("B:");
+    QLabel *bLabel = style.createContentLabel("B:", m_isDarkTheme);
     m_bSpinBox = new QSpinBox();
     m_bSpinBox->setRange(0, 255);
     m_bSpinBox->setFixedWidth(55);
@@ -213,29 +195,24 @@ void ColorPickerTool::createColorInfoPanel()
     rgbLayout->addStretch();
     mainLayout->addLayout(rgbLayout);
 
-    // 分隔线
-    QFrame *line2 = new QFrame();
-    line2->setFrameShape(QFrame::HLine);
-    line2->setStyleSheet("background-color: #555555;");
+    QFrame *line2 = style.createSeparator(m_isDarkTheme);
     mainLayout->addWidget(line2);
 
-    // HSV 控件 (标准显示格式)
-    QLabel *hsvTitle = new QLabel("HSV");
-    hsvTitle->setStyleSheet("font-weight: bold; font-size: 11px;");
+    QLabel *hsvTitle = style.createSectionLabel("HSV", m_isDarkTheme);
     mainLayout->addWidget(hsvTitle);
 
     QHBoxLayout *hsvLayout = new QHBoxLayout();
-    QLabel *hLabel = new QLabel("H:");
+    QLabel *hLabel = style.createContentLabel("H:", m_isDarkTheme);
     m_hSpinBox = new QSpinBox();
     m_hSpinBox->setRange(0, 360);
     m_hSpinBox->setSuffix("°");
     m_hSpinBox->setFixedWidth(60);
-    QLabel *sLabel = new QLabel("S:");
+    QLabel *sLabel = style.createContentLabel("S:", m_isDarkTheme);
     m_sSpinBox = new QSpinBox();
     m_sSpinBox->setRange(0, 100);
     m_sSpinBox->setSuffix("%");
     m_sSpinBox->setFixedWidth(60);
-    QLabel *vLabel = new QLabel("V:");
+    QLabel *vLabel = style.createContentLabel("V:", m_isDarkTheme);
     m_vSpinBox = new QSpinBox();
     m_vSpinBox->setRange(0, 100);
     m_vSpinBox->setSuffix("%");
@@ -249,27 +226,22 @@ void ColorPickerTool::createColorInfoPanel()
     hsvLayout->addStretch();
     mainLayout->addLayout(hsvLayout);
 
-    // 分隔线
-    QFrame *line3 = new QFrame();
-    line3->setFrameShape(QFrame::HLine);
-    line3->setStyleSheet("background-color: #555555;");
+    QFrame *line3 = style.createSeparator(m_isDarkTheme);
     mainLayout->addWidget(line3);
 
-    // HSV(CV) 控件 (OpenCV内部值)
-    QLabel *hsvCvTitle = new QLabel("HSV (OpenCV)");
-    hsvCvTitle->setStyleSheet("font-weight: bold; font-size: 11px;");
+    QLabel *hsvCvTitle = style.createSectionLabel("HSV (OpenCV)", m_isDarkTheme);
     mainLayout->addWidget(hsvCvTitle);
 
     QHBoxLayout *hsvCvLayout = new QHBoxLayout();
-    QLabel *hCvLabel = new QLabel("H:");
+    QLabel *hCvLabel = style.createContentLabel("H:", m_isDarkTheme);
     m_hCvSpinBox = new QSpinBox();
     m_hCvSpinBox->setRange(0, 180);
     m_hCvSpinBox->setFixedWidth(55);
-    QLabel *sCvLabel = new QLabel("S:");
+    QLabel *sCvLabel = style.createContentLabel("S:", m_isDarkTheme);
     m_sCvSpinBox = new QSpinBox();
     m_sCvSpinBox->setRange(0, 255);
     m_sCvSpinBox->setFixedWidth(55);
-    QLabel *vCvLabel = new QLabel("V:");
+    QLabel *vCvLabel = style.createContentLabel("V:", m_isDarkTheme);
     m_vCvSpinBox = new QSpinBox();
     m_vCvSpinBox->setRange(0, 255);
     m_vCvSpinBox->setFixedWidth(55);
@@ -282,29 +254,24 @@ void ColorPickerTool::createColorInfoPanel()
     hsvCvLayout->addStretch();
     mainLayout->addLayout(hsvCvLayout);
 
-    // 分隔线
-    QFrame *line4 = new QFrame();
-    line4->setFrameShape(QFrame::HLine);
-    line4->setStyleSheet("background-color: #555555;");
+    QFrame *line4 = style.createSeparator(m_isDarkTheme);
     mainLayout->addWidget(line4);
 
-    // Lab 控件
-    QLabel *labTitle = new QLabel("Lab");
-    labTitle->setStyleSheet("font-weight: bold; font-size: 11px;");
+    QLabel *labTitle = style.createSectionLabel("Lab", m_isDarkTheme);
     mainLayout->addWidget(labTitle);
 
     QHBoxLayout *labLayout = new QHBoxLayout();
-    QLabel *lLabel = new QLabel("L:");
+    QLabel *lLabel = style.createContentLabel("L:", m_isDarkTheme);
     m_lSpinBox = new QDoubleSpinBox();
     m_lSpinBox->setRange(0.0, 100.0);
     m_lSpinBox->setDecimals(2);
     m_lSpinBox->setFixedWidth(60);
-    QLabel *aLabel = new QLabel("a:");
+    QLabel *aLabel = style.createContentLabel("a:", m_isDarkTheme);
     m_aSpinBox = new QDoubleSpinBox();
     m_aSpinBox->setRange(-128.0, 128.0);
     m_aSpinBox->setDecimals(2);
     m_aSpinBox->setFixedWidth(60);
-    QLabel *bLabLabel = new QLabel("b:");
+    QLabel *bLabLabel = style.createContentLabel("b:", m_isDarkTheme);
     m_bLabSpinBox = new QDoubleSpinBox();
     m_bLabSpinBox->setRange(-128.0, 128.0);
     m_bLabSpinBox->setDecimals(2);
@@ -318,20 +285,14 @@ void ColorPickerTool::createColorInfoPanel()
     labLayout->addStretch();
     mainLayout->addLayout(labLayout);
 
-    // 分隔线
-    QFrame *line5 = new QFrame();
-    line5->setFrameShape(QFrame::HLine);
-    line5->setStyleSheet("background-color: #555555;");
+    QFrame *line5 = style.createSeparator(m_isDarkTheme);
     mainLayout->addWidget(line5);
 
-    // 坐标信息
-    m_coordLabel = new QLabel("坐标: (0, 0)");
-    m_coordLabel->setStyleSheet("font-size: 11px; color: #aaaaaa;");
+    m_coordLabel = style.createContentLabel("坐标: (0, 0)", m_isDarkTheme);
     mainLayout->addWidget(m_coordLabel);
 
     mainLayout->addStretch();
 
-    // 连接信号
     connect(m_rSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &ColorPickerTool::onRgbChanged);
     connect(m_gSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &ColorPickerTool::onRgbChanged);
     connect(m_bSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &ColorPickerTool::onRgbChanged);
@@ -352,7 +313,7 @@ void ColorPickerTool::createColorInfoPanel()
         onHexChanged(m_hexEdit->text());
     });
 
-    m_colorInfoPanel->hide();
+    style.applyPanelStyle(m_colorInfoPanel, m_isDarkTheme);
 }
 
 void ColorPickerTool::updateColorDisplay(const QColor &color)
@@ -360,12 +321,11 @@ void ColorPickerTool::updateColorDisplay(const QColor &color)
     m_updating = true;
     blockAllSignals(true);
 
-    // 更新颜色预览
-    QString colorStyle = QString("background-color: %1; border: 2px solid #ffffff; border-radius: 5px;")
-        .arg(color.name());
-    m_colorPreview->setStyleSheet(colorStyle);
+    QString borderStyle = m_isDarkTheme ? 
+        QString("background-color: %1; border: 2px solid #ffffff; border-radius: 5px;").arg(color.name()) :
+        QString("background-color: %1; border: 2px solid #333333; border-radius: 5px;").arg(color.name());
+    m_colorPreview->setStyleSheet(borderStyle);
 
-    // 更新 HEX
     m_hexEdit->setText(color.name().toUpper());
 
     // 更新 RGB
@@ -659,27 +619,17 @@ void ColorPickerTool::updateTheme(bool isDarkTheme)
 {
     m_isDarkTheme = isDarkTheme;
 
-    if (isDarkTheme) {
-        // 深色主题
-        m_colorInfoPanel->setStyleSheet(
-            "QWidget { background-color: #2d2d2d; border-radius: 8px; }"
-            "QLabel { color: #ffffff; }"
-            "QSpinBox, QDoubleSpinBox { background-color: #3d3d3d; color: #ffffff; border: 1px solid #555555; border-radius: 3px; padding: 2px; }"
-            "QSpinBox:focus, QDoubleSpinBox:focus { border: 1px solid #0078d4; }"
-            "QLineEdit { background-color: #3d3d3d; color: #ffffff; border: 1px solid #555555; border-radius: 3px; padding: 2px; }"
-            "QLineEdit:focus { border: 1px solid #0078d4; }"
-        );
-        m_colorPreview->setStyleSheet(QString("background-color: %1; border: 2px solid #ffffff; border-radius: 5px;").arg(m_currentColor.name()));
-    } else {
-        // 浅色主题
-        m_colorInfoPanel->setStyleSheet(
-            "QWidget { background-color: #f5f5f5; border-radius: 8px; }"
-            "QLabel { color: #000000; }"
-            "QSpinBox, QDoubleSpinBox { background-color: #ffffff; color: #000000; border: 1px solid #cccccc; border-radius: 3px; padding: 2px; }"
-            "QSpinBox:focus, QDoubleSpinBox:focus { border: 1px solid #0078d4; }"
-            "QLineEdit { background-color: #ffffff; color: #000000; border: 1px solid #cccccc; border-radius: 3px; padding: 2px; }"
-            "QLineEdit:focus { border: 1px solid #0078d4; }"
-        );
-        m_colorPreview->setStyleSheet(QString("background-color: %1; border: 2px solid #333333; border-radius: 5px;").arg(m_currentColor.name()));
+    PanelStyle::instance().applyPanelStyle(m_colorInfoPanel, isDarkTheme);
+    
+    QList<QFrame*> frames = m_colorInfoPanel->findChildren<QFrame*>();
+    for (QFrame* frame : frames) {
+        if (frame->frameShape() == QFrame::HLine) {
+            frame->setStyleSheet(PanelStyle::instance().getSeparatorStyleSheet(isDarkTheme));
+        }
     }
+    
+    QString borderStyle = isDarkTheme ? 
+        QString("background-color: %1; border: 2px solid #ffffff; border-radius: 5px;").arg(m_currentColor.name()) :
+        QString("background-color: %1; border: 2px solid #333333; border-radius: 5px;").arg(m_currentColor.name());
+    m_colorPreview->setStyleSheet(borderStyle);
 }
