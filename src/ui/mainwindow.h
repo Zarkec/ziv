@@ -75,6 +75,7 @@ private:
 
     ImageGraphicsView *m_graphicsView;
     QGraphicsScene *m_graphicsScene;
+    QLabel *m_coordinateIconLabel;
     QLabel *m_coordinateLabel;
     QLabel *m_scaleLabel;
     QLabel *m_sizeLabel;

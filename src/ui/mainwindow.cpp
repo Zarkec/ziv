@@ -34,6 +34,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_graphicsView(nullptr)
     , m_graphicsScene(nullptr)
+    , m_coordinateIconLabel(nullptr)
     , m_coordinateLabel(nullptr)
     , m_scaleLabel(nullptr)
     , m_sizeLabel(nullptr)
@@ -200,6 +201,12 @@ void MainWindow::setupUI()
     m_toolsStack->setCurrentIndex(0);
     
     // 状态栏
+    m_coordinateIconLabel = new QLabel(this);
+    m_coordinateIconLabel->setFixedSize(20, 20);
+    m_coordinateIconLabel->setScaledContents(true);
+    QString coordIconPath = m_isDarkTheme ? ":/icons/dark/coordinate.png" : ":/icons/light/coordinate.png";
+    m_coordinateIconLabel->setPixmap(QIcon(coordIconPath).pixmap(20, 20));
+    
     m_coordinateLabel = new QLabel("坐标: (0, 0)", this);
     m_scaleLabel = new QLabel("缩放:", this);
     m_sizeLabel = new QLabel("尺寸: 0x0", this);
@@ -207,6 +214,7 @@ void MainWindow::setupUI()
     m_imageIndexLabel = new QLabel("0/0", this);
     m_loadingLabel = new QLabel("", this);
     
+    statusBar()->addWidget(m_coordinateIconLabel);
     statusBar()->addWidget(m_coordinateLabel);
     statusBar()->addPermanentWidget(m_loadingLabel);
     statusBar()->addPermanentWidget(m_imageIndexLabel);
@@ -231,7 +239,7 @@ void MainWindow::setupUI()
     m_zoomSpinBox->setEnabled(false);
     statusBar()->addPermanentWidget(m_zoomSpinBox);
     
-    resize(1400, 800);
+    resize(1200, 650);
     setMinimumSize(900, 500);
     setWindowTitle("ziv");
     setWindowIcon(QIcon(":/icons/icon.png"));
@@ -742,6 +750,9 @@ void MainWindow::onPaletteChanged()
     m_measurementTool->updateTheme(m_isDarkTheme);
     m_angleMeasurementTool->updateTheme(m_isDarkTheme);
     updateOverlayPanelTheme();
+    
+    QString coordIconPath = m_isDarkTheme ? ":/icons/dark/coordinate.png" : ":/icons/light/coordinate.png";
+    m_coordinateIconLabel->setPixmap(QIcon(coordIconPath).pixmap(20, 20));
     
     QString panelStyle = m_isDarkTheme ?
         "QDockWidget { background-color: #1e1e1e; color: #e0e0e0; } "
