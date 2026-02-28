@@ -5,6 +5,7 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QKeyEvent>
+#include <QColor>
 
 class ImageGraphicsView : public QGraphicsView
 {
@@ -15,15 +16,20 @@ public:
 
     void setFixedCrosshairPosition(const QPointF &scenePos);
     void clearFixedCrosshair();
+    
+    void setBrushPreview(const QColor &color, int size, bool visible);
+    void clearBrushPreview();
 
 signals:
     void mouseMoved(QPointF scenePos);
     void mousePressed(QPointF scenePos);
+    void mouseReleased(QPointF scenePos);
     void mouseLeft();
     void mouseEntered(QPointF scenePos);
     void scaleChanged();
     void shiftPressed();
     void shiftReleased();
+    void brushSizeAdjustRequested(int delta);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -44,6 +50,10 @@ private:
     bool m_isCrosshairMode;
     QPointF m_fixedCrosshairPosition;
     bool m_hasFixedCrosshair;
+    
+    bool m_brushPreviewVisible;
+    QColor m_brushPreviewColor;
+    int m_brushPreviewSize;
 };
 
-#endif // IMAGEGRAPHICSVIEW_H
+#endif

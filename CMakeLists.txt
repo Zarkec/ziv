@@ -44,6 +44,7 @@ set(CORE_SOURCES
     ${SRC_DIR}/core/measurementtool.cpp
     ${SRC_DIR}/core/anglemeasurementtool.cpp
     ${SRC_DIR}/core/colorpickertool.cpp
+    ${SRC_DIR}/core/brushtool.cpp
 )
 
 set(CORE_HEADERS
@@ -52,6 +53,7 @@ set(CORE_HEADERS
     ${SRC_DIR}/core/measurementtool.h
     ${SRC_DIR}/core/anglemeasurementtool.h
     ${SRC_DIR}/core/colorpickertool.h
+    ${SRC_DIR}/core/brushtool.h
 )
 
 set(UTILS_SOURCES

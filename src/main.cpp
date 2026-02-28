@@ -1,10 +1,19 @@
 #include "ui/mainwindow.h"
 
 #include <QApplication>
+#include <QTranslator>
+#include <QLocale>
+#include <QLibraryInfo>
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+    
+    QTranslator qtTranslator;
+    QString locale = QLocale::system().name();
+    if (qtTranslator.load(QLocale::system(), "qt", "_", QLibraryInfo::path(QLibraryInfo::TranslationsPath))) {
+        a.installTranslator(&qtTranslator);
+    }
     
     a.setStyle("Fusion");
     

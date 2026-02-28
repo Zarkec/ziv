@@ -18,6 +18,8 @@
 #include <QCoreApplication>
 #include <QMap>
 #include <QGuiApplication>
+#include <QShortcut>
+#include <QKeySequence>
 #include <QStyleHints>
 #include <QStackedWidget>
 #include <QGroupBox>
@@ -28,6 +30,7 @@
 #include "core/measurementtool.h"
 #include "core/anglemeasurementtool.h"
 #include "core/colorpickertool.h"
+#include "core/brushtool.h"
 #include "utils/panelstyle.h"
 
 MainWindow::MainWindow(QWidget *parent)
@@ -42,9 +45,11 @@ MainWindow::MainWindow(QWidget *parent)
     , m_measureAction(nullptr)
     , m_angleAction(nullptr)
     , m_colorPickerAction(nullptr)
+    , m_brushAction(nullptr)
     , m_imageViewer(nullptr)
     , m_measurementTool(nullptr)
     , m_colorPickerTool(nullptr)
+    , m_brushTool(nullptr)
     , m_zoomSlider(nullptr)
     , m_zoomSpinBox(nullptr)
     , m_isDarkTheme(false)
@@ -83,7 +88,9 @@ MainWindow::~MainWindow()
 {
     delete m_imageViewer;
     delete m_measurementTool;
+    delete m_angleMeasurementTool;
     delete m_colorPickerTool;
+    delete m_brushTool;
 }
 
 void MainWindow::openFile(const QString &fileName)
@@ -121,9 +128,11 @@ void MainWindow::setupUI()
     m_measurementTool = new MeasurementTool(m_graphicsScene, m_graphicsView, this);
     m_angleMeasurementTool = new AngleMeasurementTool(m_graphicsScene, m_graphicsView, this);
     m_colorPickerTool = new ColorPickerTool(m_graphicsScene, m_graphicsView, this);
+    m_brushTool = new BrushTool(m_graphicsScene, m_graphicsView, this);
     m_colorPickerTool->updateTheme(m_isDarkTheme);
     m_measurementTool->updateTheme(m_isDarkTheme);
     m_angleMeasurementTool->updateTheme(m_isDarkTheme);
+    m_brushTool->updateTheme(m_isDarkTheme);
     
     // 创建右侧工具栏 DockWidget (放在上方)
     m_toolsBarDock = new QDockWidget("", this);
@@ -179,6 +188,8 @@ void MainWindow::setupUI()
     m_toolsStack->addWidget(m_angleMeasurementTool->getInfoPanel());
     // 添加取色器面板
     m_toolsStack->addWidget(m_colorPickerTool->getColorInfoPanel());
+    // 添加画笔工具面板
+    m_toolsStack->addWidget(m_brushTool->getInfoPanel());
     
     // 创建叠加控制面板（也放在工具面板中）
     createOverlayControlPanel();
@@ -372,9 +383,16 @@ void MainWindow::setupActions()
     m_overlayModeAction->setShortcut(tr("Ctrl+Y"));
     m_iconActions["overlay"] = m_overlayModeAction;
     
+    m_brushAction = new QAction("画笔", this);
+    m_brushAction->setIcon(QIcon(":/icons/light/brush.png"));
+    m_brushAction->setCheckable(true);
+    m_brushAction->setShortcut(tr("Ctrl+B"));
+    m_iconActions["brush"] = m_brushAction;
+    
     toolsMenu->addAction(m_measureAction);
     toolsMenu->addAction(m_angleAction);
     toolsMenu->addAction(m_colorPickerAction);
+    toolsMenu->addAction(m_brushAction);
     toolsMenu->addAction(m_overlayModeAction);
     
     // === 左侧工具栏 (文件和视图操作) ===
@@ -405,6 +423,7 @@ void MainWindow::setupActions()
     m_toolsToolBar->addAction(m_measureAction);
     m_toolsToolBar->addAction(m_angleAction);
     m_toolsToolBar->addAction(m_colorPickerAction);
+    m_toolsToolBar->addAction(m_brushAction);
     m_toolsToolBar->addAction(m_overlayModeAction);
     
     // 连接信号
@@ -422,6 +441,7 @@ void MainWindow::setupActions()
     connect(m_measureAction, &QAction::triggered, this, &MainWindow::toggleMeasureMode);
     connect(m_angleAction, &QAction::triggered, this, &MainWindow::toggleAngleMode);
     connect(m_colorPickerAction, &QAction::triggered, this, &MainWindow::toggleColorPickerMode);
+    connect(m_brushAction, &QAction::triggered, this, &MainWindow::toggleBrushMode);
     connect(m_fitToWindowAction, &QAction::triggered, this, &MainWindow::fitToWindow);
     connect(originalSizeAction, &QAction::triggered, this, &MainWindow::originalSize);
     connect(m_overlayModeAction, &QAction::triggered, this, &MainWindow::toggleOverlayMode);
@@ -447,6 +467,7 @@ void MainWindow::setupConnections()
             m_measurementTool->handleMouseMove(scenePos);
             m_angleMeasurementTool->handleMouseMove(scenePos);
             m_colorPickerTool->handleMouseMove(scenePos);
+            m_brushTool->handleMouseMove(scenePos);
         }
     });
     
@@ -455,7 +476,12 @@ void MainWindow::setupConnections()
             m_measurementTool->handleMousePress(scenePos);
             m_angleMeasurementTool->handleMousePress(scenePos);
             m_colorPickerTool->handleMousePress(scenePos);
+            m_brushTool->handleMousePress(scenePos);
         }
+    });
+    
+    connect(m_graphicsView, &ImageGraphicsView::mouseReleased, this, [this](QPointF scenePos) {
+        m_brushTool->handleMouseRelease(scenePos);
     });
 
     connect(m_colorPickerTool, &ColorPickerTool::selectionModeChanged, this, [this](bool enabled, QPointF position) {
@@ -514,6 +540,16 @@ void MainWindow::setupConnections()
         m_imageViewer->updateScaleInfo();
         m_measurementTool->updateMeasurementScale();
         m_angleMeasurementTool->updateMeasurementScale();
+        m_brushTool->onScaleChanged();
+    });
+    
+    connect(m_graphicsView, &ImageGraphicsView::brushSizeAdjustRequested, this, [this](int delta) {
+        if (m_brushTool->isBrushMode()) {
+            int currentSize = m_brushTool->brushSize();
+            int newSize = currentSize + (delta > 0 ? 5 : -5);
+            newSize = qBound(1, newSize, 500);
+            m_brushTool->setBrushSize(newSize);
+        }
     });
     
     connect(m_imageViewer, &ImageViewer::imageLoaded, this, [this](const QString &fileName) {
@@ -558,6 +594,20 @@ void MainWindow::setupConnections()
     connect(m_alpha2Slider, &QSlider::valueChanged, this, &MainWindow::onAlpha2Changed);
     connect(m_alpha1SpinBox, QOverload<int>::of(&QSpinBox::valueChanged), m_alpha1Slider, &QSlider::setValue);
     connect(m_alpha2SpinBox, QOverload<int>::of(&QSpinBox::valueChanged), m_alpha2Slider, &QSlider::setValue);
+    
+    QShortcut *undoShortcut = new QShortcut(QKeySequence::Undo, this);
+    connect(undoShortcut, &QShortcut::activated, this, [this]() {
+        if (m_brushTool->canUndo()) {
+            m_brushTool->undo();
+        }
+    });
+    
+    QShortcut *redoShortcut = new QShortcut(QKeySequence::Redo, this);
+    connect(redoShortcut, &QShortcut::activated, this, [this]() {
+        if (m_brushTool->canRedo()) {
+            m_brushTool->redo();
+        }
+    });
 }
 
 void MainWindow::openImage()
@@ -679,6 +729,8 @@ void MainWindow::toggleMeasureMode()
         m_angleMeasurementTool->toggleAngleMode(false);
         m_colorPickerAction->setChecked(false);
         m_colorPickerTool->toggleColorPickerMode(false);
+        m_brushAction->setChecked(false);
+        m_brushTool->toggleBrushMode(false);
         m_overlayModeAction->setChecked(false);
         m_imageViewer->enableOverlayMode(false);
         updateToolsPanel(0);  // 显示测量面板
@@ -700,6 +752,8 @@ void MainWindow::toggleAngleMode()
         m_measurementTool->toggleMeasureMode(false);
         m_colorPickerAction->setChecked(false);
         m_colorPickerTool->toggleColorPickerMode(false);
+        m_brushAction->setChecked(false);
+        m_brushTool->toggleBrushMode(false);
         m_overlayModeAction->setChecked(false);
         m_imageViewer->enableOverlayMode(false);
         updateToolsPanel(1);  // 显示测角面板
@@ -721,6 +775,8 @@ void MainWindow::toggleColorPickerMode()
         m_measurementTool->toggleMeasureMode(false);
         m_angleAction->setChecked(false);
         m_angleMeasurementTool->toggleAngleMode(false);
+        m_brushAction->setChecked(false);
+        m_brushTool->toggleBrushMode(false);
         m_overlayModeAction->setChecked(false);
         m_imageViewer->enableOverlayMode(false);
 
@@ -730,6 +786,29 @@ void MainWindow::toggleColorPickerMode()
     // 右侧面板始终显示，不隐藏
 
     m_colorPickerTool->toggleColorPickerMode(m_colorPickerAction->isChecked());
+}
+
+void MainWindow::toggleBrushMode()
+{
+    if (!m_imageViewer->isEnabled()) {
+        m_brushAction->setChecked(false);
+        QMessageBox::warning(this, tr("警告"), tr("请先打开一张图片"));
+        return;
+    }
+
+    if (m_brushAction->isChecked()) {
+        m_measureAction->setChecked(false);
+        m_measurementTool->toggleMeasureMode(false);
+        m_angleAction->setChecked(false);
+        m_angleMeasurementTool->toggleAngleMode(false);
+        m_colorPickerAction->setChecked(false);
+        m_colorPickerTool->toggleColorPickerMode(false);
+        m_overlayModeAction->setChecked(false);
+        m_imageViewer->enableOverlayMode(false);
+        updateToolsPanel(3);  // 显示画笔面板
+    }
+
+    m_brushTool->toggleBrushMode(m_brushAction->isChecked());
 }
 
 void MainWindow::nextImage()
@@ -749,6 +828,7 @@ void MainWindow::onPaletteChanged()
     m_colorPickerTool->updateTheme(m_isDarkTheme);
     m_measurementTool->updateTheme(m_isDarkTheme);
     m_angleMeasurementTool->updateTheme(m_isDarkTheme);
+    m_brushTool->updateTheme(m_isDarkTheme);
     updateOverlayPanelTheme();
     
     QString coordIconPath = m_isDarkTheme ? ":/icons/dark/coordinate.png" : ":/icons/light/coordinate.png";
@@ -920,7 +1000,9 @@ void MainWindow::toggleOverlayMode()
         m_angleMeasurementTool->toggleAngleMode(false);
         m_colorPickerAction->setChecked(false);
         m_colorPickerTool->toggleColorPickerMode(false);
-        updateToolsPanel(3);  // 显示叠加控制面板
+        m_brushAction->setChecked(false);
+        m_brushTool->toggleBrushMode(false);
+        updateToolsPanel(4);  // 显示叠加控制面板
     }
     // 右侧面板始终显示，不隐藏
 }

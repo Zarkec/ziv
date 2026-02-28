@@ -13,6 +13,9 @@ ImageGraphicsView::ImageGraphicsView(QWidget *parent)
     , m_rightButtonDragging(false)
     , m_isCrosshairMode(false)
     , m_hasFixedCrosshair(false)
+    , m_brushPreviewVisible(false)
+    , m_brushPreviewColor(Qt::red)
+    , m_brushPreviewSize(5)
 {
     setRenderHint(QPainter::Antialiasing);
     setRenderHint(QPainter::SmoothPixmapTransform);
@@ -48,7 +51,6 @@ void ImageGraphicsView::mouseMoveEvent(QMouseEvent *event)
 {
     m_lastMousePos = event->pos();
     
-    // 处理右键拖动
     if (m_rightButtonDragging) {
         QPoint delta = event->pos() - m_dragStartPos;
         horizontalScrollBar()->setValue(horizontalScrollBar()->value() - delta.x());
@@ -61,7 +63,7 @@ void ImageGraphicsView::mouseMoveEvent(QMouseEvent *event)
     
     QGraphicsView::mouseMoveEvent(event);
     
-    if (cursor().shape() == Qt::CrossCursor) {
+    if (cursor().shape() == Qt::CrossCursor || m_brushPreviewVisible) {
         viewport()->update();
     }
     
@@ -90,6 +92,10 @@ void ImageGraphicsView::mouseReleaseEvent(QMouseEvent *event)
     }
     
     QGraphicsView::mouseReleaseEvent(event);
+    
+    QPointF viewPos = event->pos();
+    QPointF scenePos = mapToScene(viewPos.toPoint());
+    emit mouseReleased(scenePos);
 }
 
 void ImageGraphicsView::enterEvent(QEnterEvent *event)
@@ -106,6 +112,15 @@ void ImageGraphicsView::enterEvent(QEnterEvent *event)
 
 void ImageGraphicsView::wheelEvent(QWheelEvent *event)
 {
+    if (event->modifiers() & Qt::ShiftModifier) {
+        int delta = event->angleDelta().y();
+        if (delta != 0) {
+            emit brushSizeAdjustRequested(delta);
+        }
+        event->accept();
+        return;
+    }
+    
     qreal scaleFactor = 1.15;
     if (event->angleDelta().y() < 0) {
         scaleFactor = 1.0 / scaleFactor;
@@ -169,13 +184,31 @@ void ImageGraphicsView::paintEvent(QPaintEvent *event)
     }
 
     if ((cursor().shape() == Qt::CrossCursor || m_isCrosshairMode) && !m_hasFixedCrosshair && m_mouseInView) {
-        QPen pen(QColor(0, 255, 0, 200));
+        QColor crosshairColor = m_brushPreviewVisible ? m_brushPreviewColor : QColor(0, 255, 0, 200);
+        QPen pen(crosshairColor);
         pen.setWidth(2);
         pen.setStyle(Qt::DashLine);
         painter.setPen(pen);
 
         painter.drawLine(0, m_lastMousePos.y(), viewport()->width(), m_lastMousePos.y());
         painter.drawLine(m_lastMousePos.x(), 0, m_lastMousePos.x(), viewport()->height());
+    }
+    
+    if (m_brushPreviewVisible && m_mouseInView) {
+        double scaleFactor = transform().m11();
+        int displaySize = qMax(static_cast<int>(m_brushPreviewSize * scaleFactor), 3);
+        int halfSize = displaySize / 2;
+        
+        QColor previewColor = m_brushPreviewColor;
+        previewColor.setAlpha(180);
+        
+        QPen pen(previewColor);
+        pen.setWidth(3);
+        painter.setPen(pen);
+        painter.setBrush(Qt::NoBrush);
+        
+        painter.drawEllipse(m_lastMousePos.x() - halfSize, m_lastMousePos.y() - halfSize, 
+                           displaySize, displaySize);
     }
 }
 
@@ -189,5 +222,19 @@ void ImageGraphicsView::setFixedCrosshairPosition(const QPointF &scenePos)
 void ImageGraphicsView::clearFixedCrosshair()
 {
     m_hasFixedCrosshair = false;
+    viewport()->update();
+}
+
+void ImageGraphicsView::setBrushPreview(const QColor &color, int size, bool visible)
+{
+    m_brushPreviewColor = color;
+    m_brushPreviewSize = size;
+    m_brushPreviewVisible = visible;
+    viewport()->update();
+}
+
+void ImageGraphicsView::clearBrushPreview()
+{
+    m_brushPreviewVisible = false;
     viewport()->update();
 }

@@ -20,6 +20,7 @@
 <file>icons/light/next.png</file>
     <file>icons/light/overlay.png</file>
     <file>icons/light/coordinate.png</file>
+    <file>icons/light/brush.png</file>
     <file>icons/dark/open.png</file>
     <file>icons/dark/export.png</file>
     <file>icons/dark/zoom_in.png</file>
@@ -38,5 +39,6 @@
 <file>icons/dark/next.png</file>
     <file>icons/dark/overlay.png</file>
     <file>icons/dark/coordinate.png</file>
+    <file>icons/dark/brush.png</file>
   </qresource>
 </RCC>

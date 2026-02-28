@@ -22,6 +22,7 @@ class ImageViewer;
 class MeasurementTool;
 class AngleMeasurementTool;
 class ColorPickerTool;
+class BrushTool;
 class ImageGraphicsView;
 
 class MainWindow : public QMainWindow
@@ -49,6 +50,7 @@ private slots:
     void toggleMeasureMode();
     void toggleAngleMode();
     void toggleColorPickerMode();
+    void toggleBrushMode();
     void nextImage();
     void previousImage();
     void onPaletteChanged();
@@ -86,11 +88,13 @@ private:
     QAction *m_measureAction;
     QAction *m_angleAction;
     QAction *m_colorPickerAction;
+    QAction *m_brushAction;
 
     ImageViewer *m_imageViewer;
     MeasurementTool *m_measurementTool;
     AngleMeasurementTool *m_angleMeasurementTool;
     ColorPickerTool *m_colorPickerTool;
+    BrushTool *m_brushTool;
 
     QSlider *m_zoomSlider;
     QSpinBox *m_zoomSpinBox;

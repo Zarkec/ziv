@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QSettings>
 #include <QtConcurrent>
+#include <QPainter>
 #include <opencv2/opencv.hpp>
 #include "core/imagegraphicsview.h"
 
@@ -389,6 +390,33 @@ QFuture<bool> ImageViewer::exportImageAsync(const QString &fileName)
         return QtConcurrent::run([]() { return false; });
     }
 
+    QRectF sceneRect = m_scene->sceneRect();
+    QImage renderedImage(sceneRect.size().toSize(), QImage::Format_ARGB32);
+    renderedImage.fill(Qt::transparent);
+    
+    QPainter painter(&renderedImage);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setRenderHint(QPainter::SmoothPixmapTransform);
+    
+    m_scene->render(&painter, QRectF(), sceneRect);
+    painter.end();
+
+    cv::Mat renderedMat(renderedImage.height(), renderedImage.width(), CV_8UC4);
+    for (int y = 0; y < renderedImage.height(); ++y) {
+        QRgb* line = (QRgb*)renderedImage.scanLine(y);
+        cv::Vec4b* matLine = renderedMat.ptr<cv::Vec4b>(y);
+        for (int x = 0; x < renderedImage.width(); ++x) {
+            matLine[x] = cv::Vec4b(qBlue(line[x]), qGreen(line[x]), qRed(line[x]), qAlpha(line[x]));
+        }
+    }
+
+    cv::Mat finalImage;
+    if (renderedMat.channels() == 4) {
+        cv::cvtColor(renderedMat, finalImage, cv::COLOR_BGRA2BGR);
+    } else {
+        finalImage = renderedMat;
+    }
+
     QFileInfo fileInfo(fileName);
     QString suffix = fileInfo.suffix().toLower();
 
@@ -407,9 +435,9 @@ QFuture<bool> ImageViewer::exportImageAsync(const QString &fileName)
         return QtConcurrent::run([]() { return false; });
     }
 
-    return QtConcurrent::run([imageToExport, fileName, ext]() {
+    return QtConcurrent::run([finalImage, fileName, ext]() {
         std::vector<uchar> buffer;
-        cv::imencode(ext, imageToExport, buffer);
+        cv::imencode(ext, finalImage, buffer);
 
         QFile file(fileName);
         if (!file.open(QIODevice::WriteOnly)) {
